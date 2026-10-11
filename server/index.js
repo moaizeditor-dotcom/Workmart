@@ -1205,7 +1205,7 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Start Server
-if (process.env.NODE_ENV !== 'test' && !process.env.NETLIFY) {
+if (process.env.NODE_ENV !== 'test' && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.listen(PORT, () => {
     console.log(`[Workmark Backend API] Live on http://localhost:${PORT}`);
   });

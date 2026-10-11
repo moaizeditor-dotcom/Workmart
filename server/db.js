@@ -4,7 +4,8 @@ import './config.js';
 
 const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
 
-const DATA_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(process.cwd(), 'data'));
+const IS_SERVERLESS = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = process.env.DATA_DIR || (IS_SERVERLESS ? '/tmp' : path.resolve(process.cwd(), 'data'));
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(DATA_DIR, 'workmark.sqlite');

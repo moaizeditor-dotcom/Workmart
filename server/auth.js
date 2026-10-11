@@ -7,7 +7,8 @@ import { db } from './db.js';
 import './config.js';
 
 // Secure secret management
-const SECRET_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(process.cwd(), 'data'));
+const IS_SERVERLESS = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const SECRET_DIR = process.env.DATA_DIR || (IS_SERVERLESS ? '/tmp' : path.resolve(process.cwd(), 'data'));
 const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
 
@@ -27,7 +28,7 @@ if (!JWT_SECRET) {
     }
   }
 
-  if (process.env.NETLIFY) {
+  if (IS_SERVERLESS) {
     console.warn('[Workmark Auth] JWT_SECRET is not configured; using an instance-local key. Configure JWT_SECRET in Netlify for stable sessions.');
   }
 }
