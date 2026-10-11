@@ -3,8 +3,12 @@ const API_BASE = '/api';
 
 export const getAuthToken = () => localStorage.getItem('workmark_token');
 export const setAuthToken = (token) => {
-  if (token) localStorage.setItem('workmark_token', token);
-  else localStorage.removeItem('workmark_token');
+  if (token) {
+    localStorage.setItem('workmark_token', token);
+  } else {
+    localStorage.removeItem('workmark_token');
+    localStorage.removeItem('workmark_current_user');
+  }
 };
 
 const request = async (endpoint, options = {}) => {
@@ -33,6 +37,7 @@ const request = async (endpoint, options = {}) => {
 export const registerUser = (userData) => request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
 export const loginUser = (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
 export const socialLogin = (socialData) => request('/auth/social', { method: 'POST', body: JSON.stringify(socialData) });
+export const getOAuthConfig = () => request('/auth/oauth/config');
 export const getMe = () => request('/auth/me');
 export const logoutUser = () => {
   setAuthToken(null);

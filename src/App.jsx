@@ -41,7 +41,14 @@ import {
 } from './api';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('workmark_current_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch (_) {
+      return null;
+    }
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getAuthToken());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -79,6 +86,15 @@ export default function App() {
     if (isDark) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [isDark]);
+
+  // Persist current user to localStorage whenever updated
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        localStorage.setItem('workmark_current_user', JSON.stringify(currentUser));
+      } catch (_) {}
+    }
+  }, [currentUser]);
 
   // Load Real Data from Backend
   const refreshAppData = async () => {
@@ -123,8 +139,24 @@ export default function App() {
     }
   };
 
+  // Process incoming OAuth callbacks from URL params on mount
   useEffect(() => {
-    refreshAppData();
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get('token');
+    const authErrorParam = params.get('auth_error');
+
+    if (tokenParam) {
+      setAuthToken(tokenParam);
+      setIsAuthenticated(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      refreshAppData();
+    } else if (authErrorParam) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      alert(`OAuth Notice: ${authErrorParam}`);
+      refreshAppData();
+    } else {
+      refreshAppData();
+    }
   }, []);
 
   // Authentication Handlers
@@ -132,11 +164,13 @@ export default function App() {
     setCurrentUser(user);
     setIsAuthenticated(true);
     setIsAdmin(user.is_admin === 1);
+    setIsAuthModalOpen(false);
     await refreshAppData();
   };
 
   const handleLogout = async () => {
     await logoutUser();
+    localStorage.removeItem('workmark_current_user');
     setIsAuthenticated(false);
     setCurrentUser(null);
     setIsAdmin(false);

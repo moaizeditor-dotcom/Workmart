@@ -10,8 +10,13 @@ import {
   requireAdmin
 } from './auth.js';
 
+try {
+  process.loadEnvFile();
+} catch (_) {}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
@@ -132,15 +137,291 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Social Auth (Google, GitHub, X)
+// ----------------------------------------------------
+// OAUTH & SOCIAL AUTHENTICATION ROUTES
+// ----------------------------------------------------
+
+// OAuth Providers Configuration Status
+app.get('/api/auth/oauth/config', (req, res) => {
+  return res.json({
+    google: {
+      configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      clientId: process.env.GOOGLE_CLIENT_ID || null,
+      callbackUrl: `${APP_URL}/api/auth/callback/google`
+    },
+    github: {
+      configured: !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+      clientId: process.env.GITHUB_CLIENT_ID || null,
+      callbackUrl: `${APP_URL}/api/auth/callback/github`
+    },
+    twitter: {
+      configured: !!(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET),
+      clientId: process.env.TWITTER_CLIENT_ID || null,
+      callbackUrl: `${APP_URL}/api/auth/callback/twitter`
+    }
+  });
+});
+
+// OAuth Authorization Initiation (Redirect to Provider)
+app.get('/api/auth/oauth/:provider', (req, res) => {
+  const { provider } = req.params;
+  const callbackUrl = `${APP_URL}/api/auth/callback/${provider}`;
+
+  if (provider === 'google') {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(400).json({
+        error: 'Google OAuth is not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in .env.',
+        provider: 'google',
+        requiredEnv: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+        callbackUrl
+      });
+    }
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      redirect_uri: callbackUrl,
+      response_type: 'code',
+      scope: 'openid profile email',
+      access_type: 'offline',
+      prompt: 'select_account',
+      state: uid('state')
+    });
+    return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  }
+
+  if (provider === 'github') {
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+      return res.status(400).json({
+        error: 'GitHub OAuth is not configured. Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET in .env.',
+        provider: 'github',
+        requiredEnv: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
+        callbackUrl
+      });
+    }
+    const params = new URLSearchParams({
+      client_id: process.env.GITHUB_CLIENT_ID,
+      redirect_uri: callbackUrl,
+      scope: 'read:user user:email',
+      state: uid('state')
+    });
+    return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
+  }
+
+  if (provider === 'twitter') {
+    if (!process.env.TWITTER_CLIENT_ID || !process.env.TWITTER_CLIENT_SECRET) {
+      return res.status(400).json({
+        error: 'Twitter / X OAuth is not configured. Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET in .env.',
+        provider: 'twitter',
+        requiredEnv: ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'],
+        callbackUrl
+      });
+    }
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: process.env.TWITTER_CLIENT_ID,
+      redirect_uri: callbackUrl,
+      scope: 'users.read tweet.read',
+      state: uid('state'),
+      code_challenge: 'challenge',
+      code_challenge_method: 'plain'
+    });
+    return res.redirect(`https://twitter.com/i/oauth2/authorize?${params.toString()}`);
+  }
+
+  return res.status(400).json({ error: `Unsupported OAuth provider: ${provider}` });
+});
+
+// OAuth Callback (Code Exchange & User Session Generation)
+app.get('/api/auth/callback/:provider', async (req, res) => {
+  const { provider } = req.params;
+  const { code, error, error_description } = req.query;
+  const callbackUrl = `${APP_URL}/api/auth/callback/${provider}`;
+
+  if (error || !code) {
+    const errorMsg = error_description || error || 'OAuth authorization cancelled or failed.';
+    return res.redirect(`${APP_URL}/?auth_error=${encodeURIComponent(errorMsg)}`);
+  }
+
+  try {
+    let email = null;
+    let name = null;
+    let avatar = null;
+
+    if (provider === 'google') {
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          redirect_uri: callbackUrl,
+          grant_type: 'authorization_code'
+        })
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange Google OAuth code.');
+      }
+
+      const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      const profile = await profileRes.json();
+      email = profile.email;
+      name = profile.name || profile.given_name || 'Google User';
+      avatar = profile.picture;
+    } else if (provider === 'github') {
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        body: JSON.stringify({
+          client_id: process.env.GITHUB_CLIENT_ID,
+          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          code,
+          redirect_uri: callbackUrl
+        })
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange GitHub OAuth code.');
+      }
+
+      const profileRes = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'User-Agent': 'Workmark-App'
+        }
+      });
+      const profile = await profileRes.json();
+      name = profile.name || profile.login || 'GitHub Developer';
+      avatar = profile.avatar_url;
+      email = profile.email;
+
+      if (!email) {
+        const emailsRes = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+            'User-Agent': 'Workmark-App'
+          }
+        });
+        const emails = await emailsRes.json();
+        if (Array.isArray(emails)) {
+          const primary = emails.find((e) => e.primary && e.verified) || emails[0];
+          if (primary) email = primary.email;
+        }
+      }
+    } else if (provider === 'twitter') {
+      const basicAuth = Buffer.from(`${process.env.TWITTER_CLIENT_ID}:${process.env.TWITTER_CLIENT_SECRET}`).toString('base64');
+      const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${basicAuth}`
+        },
+        body: new URLSearchParams({
+          code,
+          grant_type: 'authorization_code',
+          client_id: process.env.TWITTER_CLIENT_ID,
+          redirect_uri: callbackUrl,
+          code_verifier: 'challenge'
+        })
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange Twitter OAuth code.');
+      }
+
+      const profileRes = await fetch('https://api.twitter.com/2/users/me?user.fields=profile_image_url', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      const profileJson = await profileRes.json();
+      const profile = profileJson.data || {};
+      name = profile.name || profile.username || 'Twitter User';
+      email = profile.username ? `${profile.username.toLowerCase()}@x.com` : null;
+      avatar = profile.profile_image_url;
+    } else {
+      throw new Error(`Unsupported OAuth provider: ${provider}`);
+    }
+
+    if (!email) {
+      throw new Error(`Could not retrieve verified email from ${provider}.`);
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+
+    if (!user) {
+      const userId = uid('usr');
+      const baseHandle = '@' + (name || provider).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+      let handle = baseHandle;
+      const handleCheck = db.prepare('SELECT id FROM users WHERE handle = ?').get(handle);
+      if (handleCheck) {
+        handle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const defaultAvatar = avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+      const defaultBanner = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80';
+      const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
+      const isAdmin = userCount === 0 ? 1 : 0;
+      const now = Date.now();
+
+      db.prepare(`
+        INSERT INTO users (
+          id, name, handle, email, password_hash, role, company, location,
+          avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        userId,
+        name ? name.trim() : `${provider.toUpperCase()} Professional`,
+        handle,
+        cleanEmail,
+        null,
+        'Technology Professional',
+        'Independent Network',
+        'San Francisco, CA',
+        defaultAvatar,
+        defaultBanner,
+        `Verified member authenticated via ${provider.toUpperCase()}.`,
+        960,
+        1,
+        isAdmin,
+        provider,
+        now
+      );
+
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    } else {
+      if (avatar && (!user.avatar || user.avatar.includes('unsplash'))) {
+        db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, user.id);
+        user.avatar = avatar;
+      }
+    }
+
+    const { password_hash, ...safeUser } = user;
+    const token = generateToken(safeUser);
+
+    return res.redirect(`${APP_URL}/?token=${token}`);
+  } catch (err) {
+    console.error(`OAuth callback error [${provider}]:`, err);
+    return res.redirect(`${APP_URL}/?auth_error=${encodeURIComponent(err.message || 'OAuth authentication failed')}`);
+  }
+});
+
+// Social Auth API (requires verified email, rejects dummy fallbacks)
 app.post('/api/auth/social', async (req, res) => {
   try {
     const { provider, name, email, avatar } = req.body;
     if (!provider) {
       return res.status(400).json({ error: 'OAuth provider required.' });
     }
+    if (!email || !email.includes('@') || email.includes('@workmark.io') || email.includes('@workmark.local')) {
+      return res.status(400).json({ error: 'Valid verified email is required for social authentication.' });
+    }
 
-    const userEmail = email ? email.trim().toLowerCase() : `${provider}_user_${Date.now()}@workmark.local`;
+    const userEmail = email.trim().toLowerCase();
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(userEmail);
 
     if (!user) {
@@ -161,13 +442,13 @@ app.post('/api/auth/social', async (req, res) => {
         handle,
         userEmail,
         null,
-        'Staff Systems Engineer',
-        `${provider.toUpperCase()} Network Fellow`,
+        'Technology Professional',
+        'Independent Network',
         'San Francisco, CA',
         userAvatar,
         'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-        `Authenticated and verified via ${provider.toUpperCase()} OAuth.`,
-        980,
+        `Authenticated via verified ${provider.toUpperCase()} login.`,
+        960,
         1,
         0,
         provider,

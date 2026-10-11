@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Mail,
@@ -7,9 +7,10 @@ import {
   Briefcase,
   AlertCircle,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  KeyRound
 } from 'lucide-react';
-import { registerUser, loginUser, socialLogin, setAuthToken } from '../api';
+import { registerUser, loginUser, getOAuthConfig, setAuthToken } from '../api';
 
 export default function AuthModal({
   isOpen,
@@ -21,6 +22,7 @@ export default function AuthModal({
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [oauthNotice, setOauthNotice] = useState(null);
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -28,28 +30,50 @@ export default function AuthModal({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Keep mode synchronized with parent initialMode
+  useEffect(() => {
+    setMode(initialMode);
+    setError('');
+    setSuccessMsg('');
+    setOauthNotice(null);
+  }, [initialMode, isOpen]);
+
   if (!isOpen) return null;
 
-  // Handle Social Providers (Google, GitHub, X)
+  // Handle Real Social Providers (Google, GitHub, X)
   const handleSocialAuth = async (provider) => {
     setError('');
+    setSuccessMsg('');
+    setOauthNotice(null);
     setLoadingProvider(provider);
 
     try {
-      const res = await socialLogin({
-        provider,
-        name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Professional`,
-        email: `${provider}_user_${Date.now()}@workmark.io`
-      });
+      const config = await getOAuthConfig().catch(() => null);
+      const provConfig = config ? config[provider] : null;
 
-      setAuthToken(res.token);
-      setSuccessMsg(`Successfully authenticated via ${provider.toUpperCase()}!`);
-      setTimeout(() => {
-        onLoginSuccess(res.user);
-        onClose();
-      }, 500);
+      if (provConfig && provConfig.configured) {
+        // Real OAuth redirection
+        window.location.href = `/api/auth/oauth/${provider}`;
+      } else {
+        // Provider not configured in .env: inform user clearly
+        const envKeys = provider === 'google'
+          ? ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']
+          : provider === 'github'
+          ? ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET']
+          : ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'];
+
+        const provName = provider === 'google' ? 'Google' : provider === 'github' ? 'GitHub' : 'Twitter / X';
+        const callbackUrl = provConfig?.callbackUrl || `http://localhost:3000/api/auth/callback/${provider}`;
+
+        setOauthNotice({
+          provider,
+          name: provName,
+          keys: envKeys,
+          callbackUrl
+        });
+      }
     } catch (err) {
-      setError(err.message || 'Social authentication failed.');
+      setError(err.message || 'Could not verify OAuth configuration.');
     } finally {
       setLoadingProvider(null);
     }
@@ -60,14 +84,28 @@ export default function AuthModal({
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setOauthNotice(null);
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please provide all required fields.');
+    const emailTrimmed = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailTrimmed) {
+      setError('Email address is required.');
       return;
     }
 
-    if (password.length < 6) {
+    if (!emailRegex.test(emailTrimmed)) {
+      setError('Please provide a valid email format (e.g., name@company.com).');
+      return;
+    }
+
+    if (!password || password.length < 6) {
       setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (mode === 'signup' && !fullName.trim()) {
+      setError('Please enter your full legal or professional name.');
       return;
     }
 
@@ -75,33 +113,27 @@ export default function AuthModal({
 
     try {
       if (mode === 'signup') {
-        if (!fullName.trim()) {
-          setError('Please provide your full legal or professional name.');
-          setLoadingProvider(null);
-          return;
-        }
-
         const res = await registerUser({
           name: fullName.trim(),
-          email: email.trim(),
+          email: emailTrimmed,
           password,
           role: headline.trim() || 'Software Engineer'
         });
 
         setAuthToken(res.token);
-        setSuccessMsg('Account created successfully! Logging you in...');
+        setSuccessMsg('Account created successfully! Signing in...');
         setTimeout(() => {
           onLoginSuccess(res.user);
           onClose();
         }, 500);
       } else {
         const res = await loginUser({
-          email: email.trim(),
+          email: emailTrimmed,
           password
         });
 
         setAuthToken(res.token);
-        setSuccessMsg('Welcome back! Logging you in...');
+        setSuccessMsg('Welcome back! Signing in...');
         setTimeout(() => {
           onLoginSuccess(res.user);
           onClose();
@@ -186,6 +218,33 @@ export default function AuthModal({
           <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
+          </div>
+        )}
+
+        {oauthNotice && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-2 animate-fade-in">
+            <div className="flex items-start gap-2">
+              <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-800 dark:text-amber-300">
+                  {oauthNotice.name} OAuth Setup Required
+                </p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 leading-relaxed">
+                  To enable 1-click {oauthNotice.name} sign-in, add these keys to your <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/60 rounded font-mono text-[10px]">.env</code>:
+                </p>
+                <ul className="list-disc list-inside mt-1 space-y-0.5 text-[10px] font-mono text-amber-800 dark:text-amber-300">
+                  {oauthNotice.keys.map((k) => (
+                    <li key={k}>{k}=...</li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 font-sans">
+                  Redirect URI: <code className="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[9px]">{oauthNotice.callbackUrl}</code>
+                </p>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 border-t border-amber-200/60 dark:border-amber-800/60 pt-1.5 font-medium">
+              💡 You can sign up or log in immediately using the <strong>Email & Password</strong> form below!
+            </p>
           </div>
         )}
 
