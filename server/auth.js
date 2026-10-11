@@ -13,7 +13,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Secure secret management
-const SECRET_FILE = path.resolve(__dirname, '../data/.jwt_secret');
+const SECRET_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(__dirname, '../data'));
+const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
@@ -22,6 +23,7 @@ if (!JWT_SECRET) {
   } else {
     JWT_SECRET = 'workmark_sec_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     try {
+      if (!fs.existsSync(SECRET_DIR)) fs.mkdirSync(SECRET_DIR, { recursive: true });
       fs.writeFileSync(SECRET_FILE, JWT_SECRET, 'utf8');
     } catch (_) {}
   }

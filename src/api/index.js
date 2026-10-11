@@ -15,19 +15,33 @@ const request = async (endpoint, options = {}) => {
   const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {})
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+  } catch (netErr) {
+    throw new Error(`Unable to reach backend API server at ${API_BASE}. Please ensure the server is active.`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const rawText = await response.text().catch(() => '');
+    if (rawText.trim().startsWith('<') || response.status === 200 || response.status === 404) {
+      throw new Error(`Backend route ${endpoint} returned HTML from the host instead of a JSON response. The backend server is not reachable.`);
+    }
+  }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
+    throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
   }
 
   return data;

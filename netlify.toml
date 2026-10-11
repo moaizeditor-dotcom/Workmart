@@ -4,9 +4,20 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
 
-# SPA redirect fallback: routes all frontend page requests to index.html for client-side routing
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# 1. API Route: Dispatches all /api/* requests to the serverless backend
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# 2. SPA Fallback: routes all frontend page requests to index.html for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"

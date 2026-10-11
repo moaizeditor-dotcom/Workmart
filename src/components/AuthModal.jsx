@@ -22,7 +22,6 @@ export default function AuthModal({
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [oauthNotice, setOauthNotice] = useState(null);
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -35,7 +34,6 @@ export default function AuthModal({
     setMode(initialMode);
     setError('');
     setSuccessMsg('');
-    setOauthNotice(null);
   }, [initialMode, isOpen]);
 
   if (!isOpen) return null;
@@ -44,36 +42,22 @@ export default function AuthModal({
   const handleSocialAuth = async (provider) => {
     setError('');
     setSuccessMsg('');
-    setOauthNotice(null);
     setLoadingProvider(provider);
 
     try {
-      const config = await getOAuthConfig().catch(() => null);
+      const config = await getOAuthConfig();
       const provConfig = config ? config[provider] : null;
 
       if (provConfig && provConfig.configured) {
         // Real OAuth redirection
-        window.location.href = `/api/auth/oauth/${provider}`;
+        const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '');
+        window.location.href = `${apiBaseUrl}/api/auth/oauth/${provider}`;
       } else {
-        // Provider not configured in .env: inform user clearly
-        const envKeys = provider === 'google'
-          ? ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']
-          : provider === 'github'
-          ? ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET']
-          : ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'];
-
         const provName = provider === 'google' ? 'Google' : provider === 'github' ? 'GitHub' : 'Twitter / X';
-        const callbackUrl = provConfig?.callbackUrl || `http://localhost:3000/api/auth/callback/${provider}`;
-
-        setOauthNotice({
-          provider,
-          name: provName,
-          keys: envKeys,
-          callbackUrl
-        });
+        setError(`${provName} sign-in is not yet configured on this deployment. Please sign in or register with your email and password below.`);
       }
     } catch (err) {
-      setError(err.message || 'Could not verify OAuth configuration.');
+      setError(err.message || `Unable to initiate ${provider} authentication. Please try email login.`);
     } finally {
       setLoadingProvider(null);
     }
@@ -218,33 +202,6 @@ export default function AuthModal({
           <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
-          </div>
-        )}
-
-        {oauthNotice && (
-          <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-2 animate-fade-in">
-            <div className="flex items-start gap-2">
-              <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-amber-800 dark:text-amber-300">
-                  {oauthNotice.name} OAuth Setup Required
-                </p>
-                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 leading-relaxed">
-                  To enable 1-click {oauthNotice.name} sign-in, add these keys to your <code className="px-1 py-0.5 bg-amber-100 dark:bg-amber-900/60 rounded font-mono text-[10px]">.env</code>:
-                </p>
-                <ul className="list-disc list-inside mt-1 space-y-0.5 text-[10px] font-mono text-amber-800 dark:text-amber-300">
-                  {oauthNotice.keys.map((k) => (
-                    <li key={k}>{k}=...</li>
-                  ))}
-                </ul>
-                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 font-sans">
-                  Redirect URI: <code className="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[9px]">{oauthNotice.callbackUrl}</code>
-                </p>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 border-t border-amber-200/60 dark:border-amber-800/60 pt-1.5 font-medium">
-              💡 You can sign up or log in immediately using the <strong>Email & Password</strong> form below!
-            </p>
           </div>
         )}
 

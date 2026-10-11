@@ -16,7 +16,28 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+
+// Dynamic Application URL detection for local development, Netlify, and custom domains
+export const getAppUrl = (req) => {
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+    return process.env.APP_URL.replace(/\/+$/, '');
+  }
+  if (req) {
+    const origin = req.get('origin');
+    if (origin) return origin.replace(/\/+$/, '');
+    const referer = req.get('referer');
+    if (referer) {
+      try {
+        const u = new URL(referer);
+        return `${u.protocol}//${u.host}`;
+      } catch (_) {}
+    }
+    const host = req.get('x-forwarded-host') || req.get('host');
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+    if (host) return `${proto}://${host}`;
+  }
+  return process.env.APP_URL || 'http://localhost:3000';
+};
 
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
@@ -188,21 +209,22 @@ app.post('/api/auth/login', async (req, res) => {
 
 // OAuth Providers Configuration Status
 app.get('/api/auth/oauth/config', (req, res) => {
+  const currentAppUrl = getAppUrl(req);
   return res.json({
     google: {
       configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       clientId: process.env.GOOGLE_CLIENT_ID || null,
-      callbackUrl: `${APP_URL}/api/auth/callback/google`
+      callbackUrl: `${currentAppUrl}/api/auth/callback/google`
     },
     github: {
       configured: !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
       clientId: process.env.GITHUB_CLIENT_ID || null,
-      callbackUrl: `${APP_URL}/api/auth/callback/github`
+      callbackUrl: `${currentAppUrl}/api/auth/callback/github`
     },
     twitter: {
       configured: !!(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET),
       clientId: process.env.TWITTER_CLIENT_ID || null,
-      callbackUrl: `${APP_URL}/api/auth/callback/twitter`
+      callbackUrl: `${currentAppUrl}/api/auth/callback/twitter`
     }
   });
 });
@@ -210,16 +232,12 @@ app.get('/api/auth/oauth/config', (req, res) => {
 // OAuth Authorization Initiation (Redirect to Provider)
 app.get('/api/auth/oauth/:provider', (req, res) => {
   const { provider } = req.params;
-  const callbackUrl = `${APP_URL}/api/auth/callback/${provider}`;
+  const currentAppUrl = getAppUrl(req);
+  const callbackUrl = `${currentAppUrl}/api/auth/callback/${provider}`;
 
   if (provider === 'google') {
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return res.status(400).json({
-        error: 'Google OAuth is not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in .env.',
-        provider: 'google',
-        requiredEnv: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
-        callbackUrl
-      });
+      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('Google OAuth is not configured on this server. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET.')}`);
     }
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
@@ -235,12 +253,7 @@ app.get('/api/auth/oauth/:provider', (req, res) => {
 
   if (provider === 'github') {
     if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-      return res.status(400).json({
-        error: 'GitHub OAuth is not configured. Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET in .env.',
-        provider: 'github',
-        requiredEnv: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-        callbackUrl
-      });
+      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('GitHub OAuth is not configured on this server. Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET.')}`);
     }
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID,
@@ -253,12 +266,7 @@ app.get('/api/auth/oauth/:provider', (req, res) => {
 
   if (provider === 'twitter') {
     if (!process.env.TWITTER_CLIENT_ID || !process.env.TWITTER_CLIENT_SECRET) {
-      return res.status(400).json({
-        error: 'Twitter / X OAuth is not configured. Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET in .env.',
-        provider: 'twitter',
-        requiredEnv: ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'],
-        callbackUrl
-      });
+      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('Twitter/X OAuth is not configured on this server. Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET.')}`);
     }
     const params = new URLSearchParams({
       response_type: 'code',
@@ -272,18 +280,19 @@ app.get('/api/auth/oauth/:provider', (req, res) => {
     return res.redirect(`https://twitter.com/i/oauth2/authorize?${params.toString()}`);
   }
 
-  return res.status(400).json({ error: `Unsupported OAuth provider: ${provider}` });
+  return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(`Unsupported OAuth provider: ${provider}`)}`);
 });
 
 // OAuth Callback (Code Exchange & User Session Generation)
 app.get('/api/auth/callback/:provider', async (req, res) => {
   const { provider } = req.params;
   const { code, error, error_description } = req.query;
-  const callbackUrl = `${APP_URL}/api/auth/callback/${provider}`;
+  const currentAppUrl = getAppUrl(req);
+  const callbackUrl = `${currentAppUrl}/api/auth/callback/${provider}`;
 
   if (error || !code) {
     const errorMsg = error_description || error || 'OAuth authorization cancelled or failed.';
-    return res.redirect(`${APP_URL}/?auth_error=${encodeURIComponent(errorMsg)}`);
+    return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(errorMsg)}`);
   }
 
   try {
@@ -448,10 +457,10 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
     const { password_hash, ...safeUser } = user;
     const token = generateToken(safeUser);
 
-    return res.redirect(`${APP_URL}/?token=${token}`);
+    return res.redirect(`${currentAppUrl}/?token=${token}`);
   } catch (err) {
     console.error(`OAuth callback error [${provider}]:`, err);
-    return res.redirect(`${APP_URL}/?auth_error=${encodeURIComponent(err.message || 'OAuth authentication failed')}`);
+    return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(err.message || 'OAuth authentication failed')}`);
   }
 });
 
@@ -1166,6 +1175,11 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`[Workmark Backend API] Live on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test' && !process.env.NETLIFY) {
+  app.listen(PORT, () => {
+    console.log(`[Workmark Backend API] Live on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
+export { app };

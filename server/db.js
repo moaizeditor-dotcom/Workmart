@@ -6,12 +6,14 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR = path.resolve(__dirname, '../data');
+const DATA_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(__dirname, '../data'));
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (_) {}
 }
 
-const DB_PATH = path.join(DATA_DIR, 'workmark.sqlite');
+const DB_PATH = process.env.DATABASE_PATH || path.join(DATA_DIR, 'workmark.sqlite');
 export const db = new DatabaseSync(DB_PATH);
 
 // Enable foreign keys and WAL mode

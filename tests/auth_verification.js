@@ -30,27 +30,29 @@ async function runAuthTests() {
     cfg.twitter?.callbackUrl?.includes('/api/auth/callback/twitter')
   );
 
-  // 2. OAuth initiation without env credentials returns 400 with missing env details
+  // 2. OAuth initiation without env credentials redirects cleanly to auth_error
   const googleRes = await fetch(`${API_BASE}/auth/oauth/google`, { redirect: 'manual' });
-  const googleData = await googleRes.json();
-  test('Unconfigured Google OAuth returns 400 with clear missing keys',
-    googleRes.status === 400 &&
-    googleData.requiredEnv?.includes('GOOGLE_CLIENT_ID') &&
-    googleData.requiredEnv?.includes('GOOGLE_CLIENT_SECRET')
+  const googleLoc = googleRes.headers.get('location') || '';
+  test('Unconfigured Google OAuth redirects cleanly with auth_error explanation',
+    (googleRes.status === 302 || googleRes.status === 301) &&
+    googleLoc.includes('auth_error=') &&
+    googleLoc.includes('Google')
   );
 
   const githubRes = await fetch(`${API_BASE}/auth/oauth/github`, { redirect: 'manual' });
-  const githubData = await githubRes.json();
-  test('Unconfigured GitHub OAuth returns 400 with clear missing keys',
-    githubRes.status === 400 &&
-    githubData.requiredEnv?.includes('GITHUB_CLIENT_ID')
+  const githubLoc = githubRes.headers.get('location') || '';
+  test('Unconfigured GitHub OAuth redirects cleanly with auth_error explanation',
+    (githubRes.status === 302 || githubRes.status === 301) &&
+    githubLoc.includes('auth_error=') &&
+    githubLoc.includes('GitHub')
   );
 
   const twitterRes = await fetch(`${API_BASE}/auth/oauth/twitter`, { redirect: 'manual' });
-  const twitterData = await twitterRes.json();
-  test('Unconfigured Twitter OAuth returns 400 with clear missing keys',
-    twitterRes.status === 400 &&
-    twitterData.requiredEnv?.includes('TWITTER_CLIENT_ID')
+  const twitterLoc = twitterRes.headers.get('location') || '';
+  test('Unconfigured Twitter OAuth redirects cleanly with auth_error explanation',
+    (twitterRes.status === 302 || twitterRes.status === 301) &&
+    twitterLoc.includes('auth_error=') &&
+    twitterLoc.includes('Twitter')
   );
 
   // 3. OAuth callback error redirect
