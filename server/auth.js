@@ -3,15 +3,11 @@ import jwt from 'jsonwebtoken';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
 import './config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Secure secret management
-const SECRET_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(__dirname, '../data'));
+const SECRET_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(process.cwd(), 'data'));
 const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
 

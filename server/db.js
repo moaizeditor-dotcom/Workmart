@@ -1,13 +1,10 @@
-import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import './config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
 
-const DATA_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(__dirname, '../data'));
+const DATA_DIR = process.env.DATA_DIR || (process.env.NETLIFY ? '/tmp' : path.resolve(process.cwd(), 'data'));
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(DATA_DIR, 'workmark.sqlite');
