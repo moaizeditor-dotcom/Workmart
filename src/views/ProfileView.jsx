@@ -387,29 +387,32 @@ export default function ProfileView({ user, onUpdateUser }) {
             </div>
 
             <div className="space-y-3 pt-1">
-              {user.skills.map((skill) => (
-                <div
-                  key={skill.name}
-                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60"
-                >
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{skill.name}</span>
-                    <button
-                      onClick={() => handleEndorseSkill(skill.name)}
-                      className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-[#0A66C2] text-[10px] font-mono font-bold border border-blue-200 dark:border-blue-800 transition-colors"
-                      title="Click to endorse"
-                    >
-                      + Endorse ({skill.endorsements || 14})
-                    </button>
+              {(user.skills || []).map((s, idx) => {
+                const skill = typeof s === 'string' ? { name: s, score: 92, endorsements: 14 } : s;
+                return (
+                  <div
+                    key={skill.name || idx}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60"
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{skill.name}</span>
+                      <button
+                        onClick={() => handleEndorseSkill(skill.name)}
+                        className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-[#0A66C2] text-[10px] font-mono font-bold border border-blue-200 dark:border-blue-800 transition-colors"
+                        title="Click to endorse"
+                      >
+                        + Endorse ({skill.endorsements || 14})
+                      </button>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#0A66C2] to-indigo-500 rounded-full transition-all duration-300"
+                        style={{ width: `${skill.score || 85}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#0A66C2] to-indigo-500 rounded-full transition-all duration-300"
-                      style={{ width: `${skill.score}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -717,23 +720,65 @@ export default function ProfileView({ user, onUpdateUser }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Avatar Image URL</label>
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Profile Avatar</label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-[#0A66C2] text-[#0A66C2] font-bold text-xs flex items-center gap-2 shadow-sm">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Avatar</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => setIntroForm({ ...introForm, avatar: event.target.result });
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-slate-400 text-[11px]">or image URL:</span>
+                </div>
                 <input
                   type="url"
+                  placeholder="https://..."
                   value={introForm.avatar}
                   onChange={(e) => setIntroForm({ ...introForm, avatar: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Banner Cover Image URL</label>
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Banner Cover Image</label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-[#0A66C2] text-[#0A66C2] font-bold text-xs flex items-center gap-2 shadow-sm">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Banner</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => setIntroForm({ ...introForm, banner: event.target.result });
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-slate-400 text-[11px]">or banner URL:</span>
+                </div>
                 <input
                   type="url"
+                  placeholder="https://..."
                   value={introForm.banner}
                   onChange={(e) => setIntroForm({ ...introForm, banner: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
                 />
               </div>
 
@@ -934,19 +979,51 @@ export default function ProfileView({ user, onUpdateUser }) {
               </div>
 
               {/* Project Image (Optional with explicit explanation) */}
-              <div>
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
-                  Project Image / Screenshot URL <span className="font-normal text-slate-400">(Optional)</span>
+                  Project Screenshot / Diagram <span className="font-normal text-slate-400">(Optional)</span>
                 </label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-[#0A66C2] text-[#0A66C2] font-bold text-xs flex items-center gap-2 shadow-sm">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Screenshot</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => setArtifactForm({ ...artifactForm, image: event.target.result });
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span className="text-slate-400 text-[11px]">or image URL:</span>
+                </div>
                 <input
                   type="url"
                   placeholder="https://... (Leave empty to automatically generate clean architectural blueprint)"
                   value={artifactForm.image}
                   onChange={(e) => setArtifactForm({ ...artifactForm, image: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
                 />
+                {artifactForm.image && (
+                  <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-36">
+                    <img src={artifactForm.image} alt="Upload preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setArtifactForm({ ...artifactForm, image: '' })}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-900/80 text-white hover:bg-rose-600 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
                 <p className="text-[11px] text-slate-400 mt-1">
-                  💡 If you haven't uploaded an image, a luxury blueprint graphic will be automatically generated.
+                  💡 If omitted, an executive architectural blueprint graphic will be rendered automatically.
                 </p>
               </div>
 

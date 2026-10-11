@@ -34,6 +34,13 @@ export default function JobsView({
   const [selectedJob, setSelectedJob] = useState(jobs[0] || null);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'saved' | 'applied'
 
+  React.useEffect(() => {
+    setJobList(jobs);
+    if (!selectedJob && jobs.length > 0) {
+      setSelectedJob(jobs[0]);
+    }
+  }, [jobs]);
+
   // Search & Filter State
   const [searchTitle, setSearchTitle] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
@@ -42,7 +49,7 @@ export default function JobsView({
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [applyForm, setApplyForm] = useState({
     fullName: currentUser.name,
-    email: 'alex.vance@novadynamics.io',
+    email: currentUser.email || 'alex.vance@novadynamics.io',
     phone: '+1 (415) 892-0192',
     workmarkDossierIncluded: true,
     coverNote: ''

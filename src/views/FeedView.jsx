@@ -32,12 +32,25 @@ import {
 export default function FeedView({
   posts,
   onNewPost,
+  onPostsChange,
   onToggleSavePost,
   savedPostIds = [],
   currentUser
 }) {
   const [postList, setPostList] = useState(posts);
   const [activeFilter, setActiveFilter] = useState('Top');
+
+  // Keep postList synchronized with prop
+  React.useEffect(() => {
+    setPostList(posts);
+  }, [posts]);
+
+  const updatePostsAndSync = (updated) => {
+    setPostList(updated);
+    if (onPostsChange) {
+      onPostsChange(updated);
+    }
+  };
 
   // Create Post Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -83,10 +96,10 @@ export default function FeedView({
       id: `post_${Date.now()}`,
       author: {
         name: currentUser.name,
-        handle: currentUser.handle,
+        handle: currentUser.handle || `@${currentUser.name.toLowerCase().replace(/\s+/g, '_')}`,
         role: currentUser.role,
         avatar: currentUser.avatar,
-        workmarkScore: currentUser.workmarkScore,
+        workmarkScore: currentUser.workmarkScore || 950,
         verified: true
       },
       timestamp: 'Just now',
@@ -115,7 +128,7 @@ export default function FeedView({
     };
 
     const updated = [newPost, ...postList];
-    setPostList(updated);
+    updatePostsAndSync(updated);
     if (onNewPost) onNewPost(newPost);
 
     // Reset Form
@@ -128,89 +141,88 @@ export default function FeedView({
   };
 
   const handleReact = (postId, reactionType) => {
-    setPostList(
-      postList.map((p) => {
-        if (p.id === postId) {
-          const currentReaction = p.userReaction;
-          const isSameReaction = currentReaction === reactionType;
-          const newReaction = isSameReaction ? null : reactionType;
-          const counts = { ...(p.stats.reactionCounts || {}) };
+    const updated = postList.map((p) => {
+      if (p.id === postId) {
+        const currentReaction = p.userReaction;
+        const isSameReaction = currentReaction === reactionType;
+        const newReaction = isSameReaction ? null : reactionType;
+        const counts = { ...(p.stats.reactionCounts || {}) };
 
-          if (currentReaction && counts[currentReaction] > 0) {
-            counts[currentReaction] -= 1;
-          }
-          if (newReaction) {
-            counts[newReaction] = (counts[newReaction] || 0) + 1;
-          }
-
-          const totalLikes = Object.values(counts).reduce((a, b) => a + b, 0);
-
-          return {
-            ...p,
-            userReaction: newReaction,
-            stats: {
-              ...p.stats,
-              likes: totalLikes,
-              reactionCounts: counts
-            }
-          };
+        if (currentReaction && counts[currentReaction] > 0) {
+          counts[currentReaction] -= 1;
         }
-        return p;
-      })
-    );
+        if (newReaction) {
+          counts[newReaction] = (counts[newReaction] || 0) + 1;
+        }
+
+        const totalLikes = Object.values(counts).reduce((a, b) => a + b, 0);
+
+        return {
+          ...p,
+          userReaction: newReaction,
+          stats: {
+            ...p.stats,
+            likes: totalLikes,
+            reactionCounts: counts
+          }
+        };
+      }
+      return p;
+    });
+
+    updatePostsAndSync(updated);
   };
 
   const handleVotePoll = (postId, optIndex) => {
-    setPostList(
-      postList.map((p) => {
-        if (p.id === postId && p.poll) {
-          if (p.poll.userVotedIndex !== null) return p;
+    const updated = postList.map((p) => {
+      if (p.id === postId && p.poll) {
+        if (p.poll.userVotedIndex !== null) return p;
 
-          const updatedOptions = p.poll.options.map((opt, i) => {
-            if (i === optIndex) return { ...opt, votes: opt.votes + 1 };
-            return opt;
-          });
+        const updatedOptions = p.poll.options.map((opt, i) => {
+          if (i === optIndex) return { ...opt, votes: opt.votes + 1 };
+          return opt;
+        });
 
-          return {
-            ...p,
-            poll: {
-              ...p.poll,
-              options: updatedOptions,
-              totalVotes: p.poll.totalVotes + 1,
-              userVotedIndex: optIndex
-            }
-          };
-        }
-        return p;
-      })
-    );
+        return {
+          ...p,
+          poll: {
+            ...p.poll,
+            options: updatedOptions,
+            totalVotes: p.poll.totalVotes + 1,
+            userVotedIndex: optIndex
+          }
+        };
+      }
+      return p;
+    });
+
+    updatePostsAndSync(updated);
   };
 
   const handleAddComment = (postId) => {
     const text = commentInputs[postId]?.trim();
     if (!text) return;
 
-    setPostList(
-      postList.map((p) => {
-        if (p.id === postId) {
-          const newComment = {
-            id: `c_${Date.now()}`,
-            author: currentUser.name,
-            avatar: currentUser.avatar,
-            role: currentUser.role,
-            text: text,
-            timestamp: 'Just now'
-          };
-          return {
-            ...p,
-            stats: { ...p.stats, comments: p.stats.comments + 1 },
-            commentsList: [...(p.commentsList || []), newComment]
-          };
-        }
-        return p;
-      })
-    );
+    const updated = postList.map((p) => {
+      if (p.id === postId) {
+        const newComment = {
+          id: `c_${Date.now()}`,
+          author: currentUser.name,
+          avatar: currentUser.avatar,
+          role: currentUser.role,
+          text: text,
+          timestamp: 'Just now'
+        };
+        return {
+          ...p,
+          stats: { ...p.stats, comments: p.stats.comments + 1 },
+          commentsList: [...(p.commentsList || []), newComment]
+        };
+      }
+      return p;
+    });
 
+    updatePostsAndSync(updated);
     setCommentInputs({ ...commentInputs, [postId]: '' });
   };
 
@@ -221,10 +233,10 @@ export default function FeedView({
       id: `post_${Date.now()}`,
       author: {
         name: currentUser.name,
-        handle: currentUser.handle,
+        handle: currentUser.handle || `@${currentUser.name.toLowerCase().replace(/\s+/g, '_')}`,
         role: currentUser.role,
         avatar: currentUser.avatar,
-        workmarkScore: currentUser.workmarkScore,
+        workmarkScore: currentUser.workmarkScore || 950,
         verified: true
       },
       timestamp: 'Just now',
@@ -242,7 +254,8 @@ export default function FeedView({
       commentsList: []
     };
 
-    setPostList([repostItem, ...postList]);
+    const updated = [repostItem, ...postList];
+    updatePostsAndSync(updated);
     if (onNewPost) onNewPost(repostItem);
     setRepostModalPost(null);
     setRepostThought('');
@@ -741,15 +754,47 @@ export default function FeedView({
 
               {/* Photo Input */}
               {postType === 'image' && (
-                <div>
-                  <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Image / Screenshot URL</label>
+                <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Upload Photo / Diagram</label>
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-[#0A66C2] text-[#0A66C2] font-bold text-xs flex items-center gap-2 shadow-sm">
+                      <ImageIcon className="w-4 h-4" />
+                      <span>Browse From Device</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => setImageUrl(event.target.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    <span className="text-slate-400 text-[11px]">or paste direct image URL</span>
+                  </div>
                   <input
                     type="url"
                     placeholder="https://images.unsplash.com/photo-..."
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
                   />
+                  {imageUrl && (
+                    <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-48">
+                      <img src={imageUrl} alt="Upload preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl('')}
+                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-900/80 text-white hover:bg-rose-600 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

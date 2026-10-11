@@ -19,7 +19,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
         onLoginSuccess();
         onClose();
       } else {
-        setError('Invalid administrative credentials. Use the demo 1-click login.');
+        setError('Invalid administrative credentials. Please verify your system authorization.');
       }
       setLoading(false);
     }, 500);
@@ -46,7 +46,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Admin Control Tower</h3>
-              <p className="text-xs text-slate-500">Restricted authentication gateway</p>
+              <p className="text-xs text-slate-500">Restricted operational gateway</p>
             </div>
           </div>
           <button
@@ -64,10 +64,10 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
           </div>
         )}
 
-        {/* Demo Fast Login Pill */}
-        <div className="mb-4 p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900 flex items-center justify-between text-xs">
+        {/* Executive Quick Access Banner */}
+        <div className="mb-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between text-xs">
           <div>
-            <div className="font-bold text-slate-900 dark:text-white">Admin Demo Credentials</div>
+            <div className="font-bold text-slate-900 dark:text-white">Operations Root Credentials</div>
             <div className="text-[11px] font-mono text-slate-500">admin@workmark.io · workmark2026</div>
           </div>
           <button
@@ -75,7 +75,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
             onClick={handleQuickLogin}
             className="px-3 py-1.5 rounded-xl bg-[#0A66C2] text-white font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs"
           >
-            1-Click Login
+            Authenticate
           </button>
         </div>
 

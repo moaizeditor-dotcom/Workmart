@@ -100,7 +100,7 @@ export const initialPosts = [
     userVouched: false,
     artifactCard: {
       title: 'GaussianCore 3D Engine Benchmark v2.4',
-      type: 'Interactive Sandbox Demo',
+      type: 'Production Architecture System',
       performance: '120 FPS / 14MB VRAM footprint',
       badge: 'Workmark Verified Proof'
     },

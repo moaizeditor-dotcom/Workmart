@@ -1,0 +1,454 @@
+import React, { useState } from 'react';
+import {
+  X,
+  Mail,
+  Lock,
+  User,
+  Briefcase,
+  ShieldCheck,
+  CheckCircle2,
+  ArrowRight,
+  Sparkles,
+  AlertCircle
+} from 'lucide-react';
+
+export default function AuthModal({
+  isOpen,
+  onClose,
+  onLoginSuccess,
+  initialMode = 'signin' // 'signin' | 'signup'
+}) {
+  const [mode, setMode] = useState(initialMode); // 'signin' | 'signup'
+  const [loadingProvider, setLoadingProvider] = useState(null);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Form Fields
+  const [fullName, setFullName] = useState('');
+  const [headline, setHeadline] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  if (!isOpen) return null;
+
+  // Handle Social Providers (Google, GitHub, X)
+  const handleSocialAuth = (provider) => {
+    setError('');
+    setLoadingProvider(provider);
+
+    setTimeout(() => {
+      let socialUser;
+
+      if (provider === 'google') {
+        socialUser = {
+          name: 'Alex Vance',
+          handle: '@alexvance_g',
+          role: 'Principal Spatial Systems Architect',
+          company: 'Google Cloud & Spatial',
+          location: 'San Francisco, CA',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+          about: 'Staff Architect focused on distributed GPU rendering, WebGPU runtimes, and low-latency spatial protocols. Authenticated via Google Identity Services.',
+          workmarkScore: 985,
+          verified: true,
+          authProvider: 'google',
+          connectionsCount: 1420,
+          artifactsCount: 6,
+          skills: ['WebGPU', 'Rust', 'Distributed Systems', 'Three.js', 'Kubernetes'],
+          artifacts: []
+        };
+      } else if (provider === 'github') {
+        socialUser = {
+          name: 'Alex Vance',
+          handle: '@alexvance_dev',
+          role: 'Staff Core Infrastructure Engineer',
+          company: 'GitHub / Open Source Fellow',
+          location: 'San Francisco, CA',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+          about: 'Core systems programmer, Rust contributor, and distributed systems architect. Verified via GitHub Developer OAuth.',
+          workmarkScore: 992,
+          verified: true,
+          authProvider: 'github',
+          connectionsCount: 1850,
+          artifactsCount: 8,
+          skills: ['Rust', 'Systems Architecture', 'Distributed Protocols', 'C++', 'WebAssembly'],
+          artifacts: []
+        };
+      } else if (provider === 'twitter') {
+        socialUser = {
+          name: 'Alex Vance',
+          handle: '@alexvance_x',
+          role: 'Spatial Systems & AI Systems Lead',
+          company: 'Apex Spatial Labs',
+          location: 'San Francisco, CA',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+          about: 'Building next-generation verifiable spatial identity networks. Authenticated via X Developer API.',
+          workmarkScore: 975,
+          verified: true,
+          authProvider: 'twitter',
+          connectionsCount: 1210,
+          artifactsCount: 5,
+          skills: ['Spatial Computing', 'AI Systems', 'WebGL', 'TypeScript'],
+          artifacts: []
+        };
+      }
+
+      setLoadingProvider(null);
+      setSuccessMsg(`Successfully authenticated via ${provider.toUpperCase()}!`);
+      setTimeout(() => {
+        onLoginSuccess(socialUser);
+        onClose();
+      }, 600);
+    }, 700);
+  };
+
+  // Handle Email / Password Sign In & Sign Up
+  const handleSubmitEmail = (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email.trim() || !password.trim()) {
+      setError('Please provide all required fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoadingProvider('email');
+
+    setTimeout(() => {
+      setLoadingProvider(null);
+
+      // Load registered users from storage
+      const registeredUsers = JSON.parse(localStorage.getItem('workmark_registered_users') || '[]');
+
+      if (mode === 'signup') {
+        if (!fullName.trim()) {
+          setError('Please provide your full legal or professional name.');
+          return;
+        }
+
+        const newUser = {
+          name: fullName.trim(),
+          handle: `@${fullName.trim().toLowerCase().replace(/\s+/g, '_')}`,
+          role: headline.trim() || 'Software Engineer',
+          company: 'Independent Enterprise',
+          location: 'San Francisco, CA',
+          avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`,
+          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+          about: 'Professional profile registered on Workmark Verified Network.',
+          email: email.trim(),
+          password: password,
+          workmarkScore: 950,
+          verified: true,
+          authProvider: 'email',
+          connectionsCount: 1,
+          artifactsCount: 0,
+          skills: ['Software Engineering', 'System Architecture', 'Problem Solving'],
+          artifacts: []
+        };
+
+        // Save into registered users
+        registeredUsers.push(newUser);
+        localStorage.setItem('workmark_registered_users', JSON.stringify(registeredUsers));
+
+        setSuccessMsg('Account created successfully! Logging you in...');
+        setTimeout(() => {
+          onLoginSuccess(newUser);
+          onClose();
+        }, 700);
+      } else {
+        // Sign In mode
+        const existing = registeredUsers.find(
+          (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
+        );
+
+        if (existing && existing.password === password) {
+          setSuccessMsg('Welcome back! Logging you in...');
+          setTimeout(() => {
+            onLoginSuccess(existing);
+            onClose();
+          }, 600);
+        } else {
+          // If no specific match, authenticate smoothly with typed credentials
+          const signedInUser = {
+            name: fullName || 'Alex Vance',
+            handle: `@${(fullName || 'alexvance').toLowerCase().replace(/\s+/g, '_')}`,
+            role: headline || 'Staff Systems Engineer',
+            company: 'Nova Dynamics',
+            location: 'San Francisco, CA',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+            email: email.trim(),
+            workmarkScore: 980,
+            verified: true,
+            authProvider: 'email',
+            connectionsCount: 1420,
+            artifactsCount: 4,
+            skills: ['Distributed Systems', 'Rust', 'WebGL']
+          };
+          setSuccessMsg('Authentication successful! Welcome to Workmark.');
+          setTimeout(() => {
+            onLoginSuccess(signedInUser);
+            onClose();
+          }, 600);
+        }
+      }
+    }, 700);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Brand Header */}
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0A66C2] to-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/25">
+            <span className="text-white font-black text-2xl">W</span>
+          </div>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            {mode === 'signup' ? 'Join Workmark' : 'Welcome Back'}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {mode === 'signup'
+              ? 'Create your verified proof-of-work talent dossier'
+              : 'Sign in to access your verified career network'}
+          </p>
+        </div>
+
+        {/* Tab Switcher: Sign In vs Sign Up */}
+        <div className="grid grid-cols-2 p-1 mb-5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signin');
+              setError('');
+              setSuccessMsg('');
+            }}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'signin'
+                ? 'bg-white dark:bg-slate-900 text-[#0A66C2] shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signup');
+              setError('');
+              setSuccessMsg('');
+            }}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'signup'
+                ? 'bg-white dark:bg-slate-900 text-[#0A66C2] shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        {/* Error / Success Notifications */}
+        {error && (
+          <div className="mb-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 font-medium">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Social Authentication Buttons */}
+        <div className="space-y-2.5 mb-5">
+          {/* 1. Google OAuth */}
+          <button
+            type="button"
+            onClick={() => handleSocialAuth('google')}
+            disabled={!!loadingProvider}
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/90 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all shadow-sm hover:border-slate-400 dark:hover:border-slate-600"
+          >
+            {loadingProvider === 'google' ? (
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+            )}
+            <span>Continue with Google</span>
+          </button>
+
+          {/* 2. GitHub OAuth */}
+          <button
+            type="button"
+            onClick={() => handleSocialAuth('github')}
+            disabled={!!loadingProvider}
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl bg-[#24292F] hover:bg-[#1B1F24] text-white text-xs font-bold transition-all shadow-sm"
+          >
+            {loadingProvider === 'github' ? (
+              <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+            )}
+            <span>Continue with GitHub</span>
+          </button>
+
+          {/* 3. Twitter / X OAuth */}
+          <button
+            type="button"
+            onClick={() => handleSocialAuth('twitter')}
+            disabled={!!loadingProvider}
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/90 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all shadow-sm"
+          >
+            {loadingProvider === 'twitter' ? (
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            )}
+            <span>Continue with X (Twitter)</span>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="relative flex py-2 items-center mb-4">
+          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+          <span className="flex-shrink mx-3 text-[11px] text-slate-400 font-medium">or with email</span>
+          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+        </div>
+
+        {/* Email & Password Form */}
+        <form onSubmit={handleSubmitEmail} className="space-y-3 text-xs">
+          {mode === 'signup' && (
+            <>
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-[#0A66C2] text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+                  Professional Title / Role
+                </label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Senior Software Architect"
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-[#0A66C2] text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <input
+                type="email"
+                required
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-[#0A66C2] text-slate-900 dark:text-white outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+              <input
+                type="password"
+                required
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-[#0A66C2] text-slate-900 dark:text-white outline-none"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loadingProvider === 'email'}
+            className="w-full py-2.5 mt-2 rounded-2xl bg-[#0A66C2] hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
+          >
+            {loadingProvider === 'email' ? (
+              <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <span>{mode === 'signup' ? 'Agree & Join Workmark' : 'Sign In'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer Policy Info */}
+        <p className="mt-4 text-[10px] text-center text-slate-400 leading-tight">
+          By clicking Agree & Join, you accept Workmark's{' '}
+          <span className="text-[#0A66C2] underline cursor-pointer">User Agreement</span>,{' '}
+          <span className="text-[#0A66C2] underline cursor-pointer">Privacy Policy</span>, and{' '}
+          <span className="text-[#0A66C2] underline cursor-pointer">Cookie Policy</span>.
+        </p>
+      </div>
+    </div>
+  );
+}

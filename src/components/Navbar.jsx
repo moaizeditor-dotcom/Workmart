@@ -29,9 +29,11 @@ export default function Navbar({
   unreadNotificationsCount = 0,
   unreadMessagesCount = 0,
   pendingInvitesCount = 0,
-  onResetData,
   isDark = false,
-  onToggleTheme
+  onToggleTheme,
+  isAuthenticated = true,
+  onOpenAuth,
+  onLogout
 }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,95 +192,122 @@ export default function Navbar({
           {/* 3D Light Atmosphere Selector */}
           <AtmosphereSelector />
 
-          {/* Me / Profile Dropdown Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center gap-2 pl-2 pr-2.5 py-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#0A66C2] transition-all group"
-            >
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-7 h-7 rounded-xl object-cover border border-slate-300 dark:border-slate-600"
-              />
-              <div className="text-left hidden lg:block">
-                <div className="text-xs font-bold text-slate-800 dark:text-white group-hover:text-[#0A66C2] transition-colors">
-                  Me
-                </div>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 shadow-xl z-50 animate-fade-in">
-                <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
-                  />
-                  <div className="overflow-hidden">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</h4>
-                    <p className="text-[10px] text-slate-500 truncate">{currentUser.role}</p>
+          {/* Authentication State: Logged In vs Logged Out */}
+          {!isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onOpenAuth && onOpenAuth('signin')}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#0A66C2] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => onOpenAuth && onOpenAuth('signup')}
+                className="px-4 py-1.5 rounded-xl bg-[#0A66C2] hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm shadow-blue-500/20"
+              >
+                Join Now
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 pl-2 pr-2.5 py-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#0A66C2] transition-all group"
+              >
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-xl object-cover border border-slate-300 dark:border-slate-600"
+                />
+                <div className="text-left hidden lg:block">
+                  <div className="text-xs font-bold text-slate-800 dark:text-white group-hover:text-[#0A66C2] transition-colors">
+                    Me
                   </div>
                 </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200" />
+              </button>
 
-                <div className="py-2 space-y-1 text-xs">
-                  <button
-                    onClick={() => {
-                      setActiveTab('profile');
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-[#0A66C2] flex items-center gap-2 transition-colors font-medium"
-                  >
-                    <User className="w-4 h-4 text-[#0A66C2]" />
-                    <span>View Profile & Work</span>
-                  </button>
+              {/* Dropdown Menu */}
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 shadow-xl z-50 animate-fade-in">
+                  <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <div className="overflow-hidden">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</h4>
+                      <p className="text-[10px] text-slate-500 truncate">{currentUser.role}</p>
+                    </div>
+                  </div>
 
-                  <button
-                    onClick={() => {
-                      setActiveTab('profile');
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center gap-2 transition-colors font-medium"
-                  >
-                    <Upload className="w-4 h-4 text-indigo-500" />
-                    <span>Upload & Distribute Work</span>
-                  </button>
+                  <div className="py-2 space-y-1 text-xs">
+                    <button
+                      onClick={() => {
+                        setActiveTab('profile');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-[#0A66C2] flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <User className="w-4 h-4 text-[#0A66C2]" />
+                      <span>View Profile & Work</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      if (isAdmin) {
-                        setActiveTab('admin');
-                      } else {
-                        onOpenAdminModal();
-                      }
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-slate-800 hover:text-rose-600 flex items-center gap-2 transition-colors font-medium"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-rose-500" />
-                    <span>Admin Control Tower</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('profile');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <Upload className="w-4 h-4 text-indigo-500" />
+                      <span>Upload & Distribute Work</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (isAdmin) {
+                          setActiveTab('admin');
+                        } else {
+                          onOpenAdminModal();
+                        }
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-slate-800 hover:text-rose-600 flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <ShieldAlert className="w-4 h-4 text-rose-500" />
+                      <span>Admin Control Tower</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        if (onOpenAuth) onOpenAuth('signin');
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-xl text-xs text-slate-600 dark:text-slate-400 hover:text-[#0A66C2] hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Switch Account</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        if (onLogout) onLogout();
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-xl text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors font-medium"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
-
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={() => {
-                      if (confirm('Reset demo data to default?')) {
-                        onResetData();
-                      }
-                    }}
-                    className="w-full text-left px-3 py-1.5 rounded-xl text-[11px] text-slate-500 hover:text-amber-600 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors font-mono"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset Demo Data</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

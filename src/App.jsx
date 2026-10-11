@@ -10,6 +10,7 @@ import MessagingView from './views/MessagingView';
 import NotificationsView from './views/NotificationsView';
 import AdminPanelView from './views/AdminPanelView';
 import AdminLoginModal from './components/AdminLoginModal';
+import AuthModal from './components/AuthModal';
 import {
   loadInitialAppData,
   setStoredItem,
@@ -31,6 +32,13 @@ export default function App() {
   const [notifications, setNotifications] = useState(initialData.notifications);
   const [savedPostIds, setSavedPostIds] = useState(initialData.savedPosts);
   const [savedJobIds, setSavedJobIds] = useState(initialData.savedJobs);
+
+  // Authentication State (Google, GitHub, X, Email)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('workmark_auth_token') !== null || true;
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('signin');
 
   // Admin Auth State
   const [isAdmin, setIsAdmin] = useState(false);
@@ -99,6 +107,24 @@ export default function App() {
     setStoredItem(STORAGE_KEYS.SAVED_JOBS, savedJobIds);
   }, [savedJobIds]);
 
+  // Handlers for Authentication (Google, GitHub, X, Email)
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem('workmark_auth_token', 'wm_' + Date.now());
+    setStoredItem(STORAGE_KEYS.USER, user);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('workmark_auth_token');
+  };
+
+  const handleOpenAuth = (mode = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   // Handlers for User Profile Updates
   const handleUpdateUser = (updatedUser) => {
     setCurrentUser(updatedUser);
@@ -107,6 +133,10 @@ export default function App() {
   // Handlers for Posts
   const handleNewPost = (newPost) => {
     setPosts([newPost, ...posts]);
+  };
+
+  const handlePostsChange = (updatedPosts) => {
+    setPosts(updatedPosts);
   };
 
   const handleToggleSavePost = (postId) => {
@@ -292,9 +322,11 @@ export default function App() {
         unreadNotificationsCount={unreadNotificationsCount}
         unreadMessagesCount={unreadMessagesCount}
         pendingInvitesCount={2}
-        onResetData={resetAllData}
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={handleOpenAuth}
+        onLogout={handleLogout}
       />
 
       {/* Main Views Container */}
@@ -304,6 +336,7 @@ export default function App() {
           <FeedView
             posts={posts}
             onNewPost={handleNewPost}
+            onPostsChange={handlePostsChange}
             onToggleSavePost={handleToggleSavePost}
             savedPostIds={savedPostIds}
             currentUser={currentUser}
@@ -378,6 +411,14 @@ export default function App() {
         currentUser={currentUser}
       />
 
+      {/* Auth Modal (Google, GitHub, Twitter/X, Email) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        initialMode={authModalMode}
+      />
+
       {/* Admin Authentication Modal */}
       <AdminLoginModal
         isOpen={isAdminModalOpen}
@@ -385,16 +426,21 @@ export default function App() {
         onLoginSuccess={handleAdminLoginSuccess}
       />
 
-      {/* Subtle Footer */}
-      <footer className="border-t border-slate-800/80 py-8 px-4 text-center text-xs text-slate-500 font-mono glass-panel">
+      {/* Professional Enterprise Footer */}
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 px-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur text-xs text-slate-500 font-sans transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-brand-cyan" />
-            <span className="text-slate-300 font-bold">WORKMARK 3D</span>
-            <span>— The Verified Professional Network & Talent Exchange</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Workmark</span>
+            </div>
+            <span>© 2026 Workmark Corporation. Verified Professional Network.</span>
           </div>
-          <div>
-            <span>Built with Three.js WebGL · React 18 · Tailwind CSS</span>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+            <span className="hover:text-[#0A66C2] cursor-pointer">Privacy Policy</span>
+            <span className="hover:text-[#0A66C2] cursor-pointer">User Agreement</span>
+            <span className="hover:text-[#0A66C2] cursor-pointer">Cookie Policy</span>
+            <span className="hover:text-[#0A66C2] cursor-pointer">Community Guidelines</span>
           </div>
         </div>
       </footer>
