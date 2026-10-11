@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Sun, Zap, Globe, Compass, Check } from 'lucide-react';
-import { ATMOSPHERE_PALETTES } from './ThreeBackground';
+import { ATMOSPHERE_PALETTES } from '../constants/atmospheres';
 
 export default function AtmosphereSelector() {
   const [isOpen, setIsOpen] = useState(false);
