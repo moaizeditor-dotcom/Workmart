@@ -1,0 +1,13 @@
+# Netlify Production Deployment Configuration for WorkMart
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA redirect fallback: routes all frontend page requests to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

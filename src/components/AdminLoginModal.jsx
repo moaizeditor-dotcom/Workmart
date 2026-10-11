@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, ShieldAlert, CheckCircle2 } from 'lucide-react';
-import { loginUser } from '../api';
+import { loginUser, setAuthToken } from '../api';
 
 export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -18,7 +18,8 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
     try {
       const res = await loginUser({ email: email.trim(), password });
       if (res.user && res.user.is_admin === 1) {
-        onLoginSuccess();
+        setAuthToken(res.token);
+        onLoginSuccess(res.user);
         onClose();
       } else {
         setError('This account does not have administrative privileges.');
@@ -32,7 +33,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800">
+      <div className="relative w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center shadow-md shadow-rose-500/20">

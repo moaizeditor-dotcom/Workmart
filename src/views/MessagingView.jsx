@@ -15,7 +15,8 @@ import {
   FileCode,
   Smile,
   MoreVertical,
-  UserCheck
+  UserCheck,
+  ChevronLeft
 } from 'lucide-react';
 
 export default function MessagingView({
@@ -30,6 +31,7 @@ export default function MessagingView({
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   // New Chat Modal State
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
@@ -90,6 +92,7 @@ export default function MessagingView({
 
     if (onNewConversation) onNewConversation(newConv);
     setActiveConvId(newConv.id);
+    setMobileShowChat(true);
     setIsNewChatModalOpen(false);
   };
 
@@ -99,10 +102,10 @@ export default function MessagingView({
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="h-[740px] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden grid grid-cols-1 md:grid-cols-12">
+    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="h-[calc(100vh-140px)] md:h-[740px] rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden grid grid-cols-1 md:grid-cols-12">
         {/* Left Column: Conversations List */}
-        <div className="md:col-span-4 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col">
+        <div className={`md:col-span-4 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col ${mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
           {/* Header & New Chat Button */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
@@ -146,7 +149,10 @@ export default function MessagingView({
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => setActiveConvId(conv.id)}
+                    onClick={() => {
+                      setActiveConvId(conv.id);
+                      setMobileShowChat(true);
+                    }}
                     className={`p-4 cursor-pointer transition-all flex items-start gap-3 ${
                       isActive
                         ? 'bg-blue-50/70 dark:bg-blue-950/40 border-l-4 border-[#0A66C2]'
@@ -186,17 +192,26 @@ export default function MessagingView({
         </div>
 
         {/* Right Column: Chat Window */}
-        <div className="md:col-span-8 flex flex-col bg-white dark:bg-slate-900">
+        <div className={`md:col-span-8 flex flex-col bg-white dark:bg-slate-900 ${mobileShowChat ? 'flex' : 'hidden md:flex'}`}>
           {activeConv ? (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {mobileShowChat && (
+                    <button
+                      onClick={() => setMobileShowChat(false)}
+                      className="md:hidden p-1.5 -ml-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900"
+                      title="Back to conversations"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
                   <div className="relative">
                     <img
                       src={activeConv.peer.avatar}
                       alt={activeConv.peer.name}
-                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
                     />
                     {activeConv.peer.online && (
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 absolute -bottom-0.5 -right-0.5" />

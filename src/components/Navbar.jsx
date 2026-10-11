@@ -38,7 +38,8 @@ export default function Navbar({
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors shadow-sm">
+    <>
+      <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo & Clean Executive Identity */}
         <div className="flex items-center gap-6">
@@ -75,8 +76,8 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Primary Navigation Tabs (Matching LinkedIn Layout) */}
-        <nav className="flex items-center gap-1 sm:gap-1.5">
+        {/* Primary Navigation Tabs (Desktop & Tablet) */}
+        <nav className="hidden md:flex items-center gap-1 sm:gap-1.5">
           {/* 1. Home / Feed */}
           <button
             onClick={() => setActiveTab('feed')}
@@ -308,5 +309,110 @@ export default function Navbar({
         </div>
       </div>
     </header>
+
+    {/* Mobile Bottom Navigation Bar (LinkedIn Mobile UX for Phones) */}
+    {isAuthenticated && (
+      <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 flex items-center justify-around h-16 px-1 safe-area-inset-bottom shadow-lg">
+        {/* 1. Feed */}
+        <button
+          onClick={() => setActiveTab('feed')}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs transition-colors ${
+            activeTab === 'feed'
+              ? 'text-[#0A66C2] font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Compass className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Home</span>
+        </button>
+
+        {/* 2. Network */}
+        <button
+          onClick={() => setActiveTab('network')}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs relative transition-colors ${
+            activeTab === 'network'
+              ? 'text-[#0A66C2] font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Share2 className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Network</span>
+          {pendingInvitesCount > 0 && (
+            <span className="absolute top-1 right-2.5 px-1 rounded-full text-[8px] font-mono font-bold bg-[#0A66C2] text-white">
+              {pendingInvitesCount}
+            </span>
+          )}
+        </button>
+
+        {/* 3. Jobs */}
+        <button
+          onClick={() => setActiveTab('jobs')}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs transition-colors ${
+            activeTab === 'jobs'
+              ? 'text-[#0A66C2] font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Briefcase className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Jobs</span>
+        </button>
+
+        {/* 4. Messages */}
+        <button
+          onClick={() => setActiveTab('messages')}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs relative transition-colors ${
+            activeTab === 'messages'
+              ? 'text-[#0A66C2] font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <MessageSquare className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Chat</span>
+          {unreadMessagesCount > 0 && (
+            <span className="absolute top-1 right-2.5 px-1 rounded-full text-[8px] font-mono font-bold bg-emerald-500 text-white">
+              {unreadMessagesCount}
+            </span>
+          )}
+        </button>
+
+        {/* 5. Alerts */}
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs relative transition-colors ${
+            activeTab === 'notifications'
+              ? 'text-[#0A66C2] font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Bell className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Alerts</span>
+          {unreadNotificationsCount > 0 && (
+            <span className="absolute top-1 right-2.5 px-1 rounded-full text-[8px] font-mono font-bold bg-rose-500 text-white">
+              {unreadNotificationsCount}
+            </span>
+          )}
+        </button>
+
+        {/* 6. Admin Panel */}
+        <button
+          onClick={() => {
+            if (isAdmin) {
+              setActiveTab('admin');
+            } else {
+              onOpenAdminModal();
+            }
+          }}
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-xs transition-colors ${
+            activeTab === 'admin'
+              ? 'text-rose-600 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-rose-600'
+          }`}
+        >
+          <ShieldAlert className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Admin</span>
+        </button>
+      </nav>
+    )}
+  </>
   );
 }

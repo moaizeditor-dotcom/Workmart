@@ -271,10 +271,10 @@ export default function FeedView({
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Profile Card & Quick Navigation */}
-        <aside className="lg:col-span-3 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        {/* Left Column: Profile Card & Quick Navigation (Desktop) */}
+        <aside className="hidden lg:block lg:col-span-3 space-y-6">
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm overflow-hidden">
             <div className="relative -mx-5 -mt-5 h-20 overflow-hidden">
               <img src={currentUser.banner} alt="Cover" className="w-full h-full object-cover" />
@@ -345,9 +345,30 @@ export default function FeedView({
         </aside>
 
         {/* Center Column: Start Post & Main Feed Stream */}
-        <main className="lg:col-span-6 space-y-6">
+        <main className="lg:col-span-6 space-y-4 sm:space-y-6">
+          {/* Mobile Filter Shortcuts (Horizontal Scrolling on Phones) */}
+          <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: 'Top', label: 'Top Signals & Proofs' },
+              { id: 'Recent', label: 'Recent Discussions' },
+              { id: 'Saved', label: `Saved (${savedPostIds.length})` }
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+                  activeFilter === f.id
+                    ? 'bg-[#0A66C2] text-white font-bold shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {/* Start a Post Card */}
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <img
                 src={currentUser.avatar}
@@ -684,8 +705,8 @@ export default function FeedView({
           </div>
         </main>
 
-        {/* Right Column: Clean Executive Industry News & Career Opportunities */}
-        <aside className="lg:col-span-3 space-y-6">
+        {/* Right Column: Clean Executive Industry News & Career Opportunities (Desktop) */}
+        <aside className="hidden lg:block lg:col-span-3 space-y-6">
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
             <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-[#0A66C2]" />

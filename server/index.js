@@ -24,6 +24,51 @@ app.use(express.json({ limit: '15mb' }));
 // Helper to generate IDs
 const uid = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
+// Administrator Account Provisioning & Synchronization
+const ensureAdminUser = async () => {
+  try {
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@workmart.com').trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminWorkMart2026!';
+    const passwordHash = await hashPassword(adminPassword);
+
+    const existingAdmin = db.prepare('SELECT id, is_admin FROM users WHERE email = ?').get(adminEmail);
+    if (!existingAdmin) {
+      const adminId = 'usr_admin_master';
+      const now = Date.now();
+      db.prepare(`
+        INSERT INTO users (
+          id, name, handle, email, password_hash, role, company, location,
+          avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        adminId,
+        'WorkMart Administrator',
+        '@admin',
+        adminEmail,
+        passwordHash,
+        'Chief System Administrator',
+        'WorkMart Corporation',
+        'Global Command Center',
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+        'Platform Administrator for WorkMart Verified Talent Network.',
+        1000,
+        1,
+        1,
+        'local',
+        now
+      );
+      console.log(`[WorkMart Admin] Primary administrator account provisioned: ${adminEmail}`);
+    } else {
+      db.prepare('UPDATE users SET is_admin = 1, password_hash = ? WHERE email = ?').run(passwordHash, adminEmail);
+      console.log(`[WorkMart Admin] Administrator account credentials synchronized: ${adminEmail}`);
+    }
+  } catch (err) {
+    console.error('[WorkMart Admin] Failed to provision administrator account:', err);
+  }
+};
+ensureAdminUser();
+
 // ----------------------------------------------------
 // 1. AUTHENTICATION ROUTES
 // ----------------------------------------------------

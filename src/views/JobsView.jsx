@@ -33,6 +33,7 @@ export default function JobsView({
   const [jobList, setJobList] = useState(jobs);
   const [selectedJob, setSelectedJob] = useState(jobs[0] || null);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'saved' | 'applied'
+  const [mobileViewingDetail, setMobileViewingDetail] = useState(false);
 
   React.useEffect(() => {
     setJobList(jobs);
@@ -253,7 +254,7 @@ export default function JobsView({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Job Cards List */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className={`lg:col-span-7 space-y-4 ${mobileViewingDetail ? 'hidden lg:block' : 'block'}`}>
             {filteredJobs.length === 0 ? (
               <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A66C2] flex items-center justify-center mx-auto">
@@ -286,7 +287,10 @@ export default function JobsView({
                 return (
                   <div
                     key={job.id}
-                    onClick={() => setSelectedJob(job)}
+                    onClick={() => {
+                      setSelectedJob(job);
+                      setMobileViewingDetail(true);
+                    }}
                     className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border transition-all cursor-pointer shadow-sm ${
                       isSelected
                         ? 'border-[#0A66C2] ring-1 ring-[#0A66C2] bg-blue-50/20 dark:bg-blue-950/20'
@@ -363,7 +367,15 @@ export default function JobsView({
           </div>
 
           {/* Right Column: Detailed Job View & Easy Apply Action Pane */}
-          <div className="lg:col-span-5">
+          <div className={`lg:col-span-5 ${mobileViewingDetail ? 'block' : 'hidden lg:block'}`}>
+            {mobileViewingDetail && (
+              <button
+                onClick={() => setMobileViewingDetail(false)}
+                className="lg:hidden mb-4 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[#0A66C2] text-xs font-bold flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm"
+              >
+                <span>← Back to all opportunities</span>
+              </button>
+            )}
             {selectedJob ? (
               <div className="sticky top-24 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
                 <div>

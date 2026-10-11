@@ -306,9 +306,14 @@ export default function App() {
   };
 
   // Admin Actions
-  const handleAdminLoginSuccess = () => {
+  const handleAdminLoginSuccess = async (adminUser) => {
+    if (adminUser) {
+      setCurrentUser(adminUser);
+      setIsAuthenticated(true);
+    }
     setIsAdmin(true);
     setActiveTab('admin');
+    await refreshAppData();
   };
 
   const handleAdminLogout = () => {
@@ -375,7 +380,7 @@ export default function App() {
       />
 
       {/* Main Views Container */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-24 md:pb-16 overflow-x-hidden w-full max-w-full">
         {/* 1. Feed / Home */}
         {activeTab === 'feed' && (
           <FeedView

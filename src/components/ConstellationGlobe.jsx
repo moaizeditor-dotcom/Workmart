@@ -13,7 +13,7 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
     if (!mountRef.current) return;
 
     const width = mountRef.current.clientWidth || 800;
-    const height = 480;
+    const height = mountRef.current.clientHeight || (window.innerWidth < 640 ? 360 : 480);
 
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
@@ -26,6 +26,7 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = 'none';
     mountRef.current.appendChild(renderer.domElement);
 
     // Group for the entire rotating constellation
@@ -211,11 +212,74 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
       }
     };
 
+    // Touch Interaction for Mobile & Tablet Devices
+    let touchStartPos = { x: 0, y: 0 };
+    let hasTouchMoved = false;
+
+    const onTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        hasTouchMoved = false;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (isDragging && e.touches.length === 1) {
+        const clientX = e.touches[0].clientX;
+        const clientY = e.touches[0].clientY;
+        const deltaX = clientX - previousMousePosition.x;
+        const deltaY = clientY - previousMousePosition.y;
+
+        if (Math.abs(clientX - touchStartPos.x) > 5 || Math.abs(clientY - touchStartPos.y) > 5) {
+          hasTouchMoved = true;
+        }
+
+        globeGroup.rotation.y += deltaX * 0.008;
+        globeGroup.rotation.x += deltaY * 0.008;
+
+        rotationVelocity = {
+          x: deltaY * 0.002,
+          y: deltaX * 0.002
+        };
+
+        previousMousePosition = { x: clientX, y: clientY };
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      isDragging = false;
+      if (!hasTouchMoved && e.changedTouches.length === 1) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const clientX = e.changedTouches[0].clientX;
+        const clientY = e.changedTouches[0].clientY;
+        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeMeshes);
+
+        if (intersects.length > 0) {
+          const hitMesh = intersects[0].object;
+          const data = nodeDataMap.get(hitMesh.id);
+          if (data) {
+            setSelectedNode(data);
+            if (onSelectNode) onSelectNode(data);
+          }
+        }
+      }
+    };
+
     const dom = renderer.domElement;
     dom.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     dom.addEventListener('click', onClick);
+
+    dom.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
 
     // Animation Loop
     let animId;
@@ -241,9 +305,10 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
     const handleResize = () => {
       if (!mountRef.current) return;
       const w = mountRef.current.clientWidth;
-      camera.aspect = w / height;
+      const h = mountRef.current.clientHeight || (window.innerWidth < 640 ? 360 : 480);
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, height);
+      renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
 
@@ -253,6 +318,11 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       dom.removeEventListener('click', onClick);
+
+      dom.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+
       window.removeEventListener('resize', handleResize);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
@@ -299,7 +369,7 @@ export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
       </div>
 
       {/* 3D Three.js Container */}
-      <div className="relative w-full h-[480px] rounded-2xl bg-void-950/80 overflow-hidden border border-slate-800/80">
+      <div className="relative w-full h-[360px] sm:h-[480px] rounded-2xl bg-void-950/80 overflow-hidden border border-slate-800/80">
         <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
         {/* Ambient HUD Overlay */}

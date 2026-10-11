@@ -32,7 +32,7 @@ export default function FloatingChatDock({
   };
 
   return (
-    <div className="fixed bottom-0 right-4 sm:right-8 z-40 w-80 sm:w-96">
+    <div className="hidden md:block fixed bottom-0 right-4 sm:right-8 z-40 w-80 sm:w-96">
       {/* Minimized Dock Bar */}
       <button
         onClick={() => setIsOpen(!isOpen)}
