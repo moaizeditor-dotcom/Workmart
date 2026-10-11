@@ -11,6 +11,7 @@ import NotificationsView from './views/NotificationsView';
 import AdminPanelView from './views/AdminPanelView';
 import AdminLoginModal from './components/AdminLoginModal';
 import AuthModal from './components/AuthModal';
+import LandingView from './views/LandingView';
 import {
   loadInitialAppData,
   setStoredItem,
@@ -35,7 +36,7 @@ export default function App() {
 
   // Authentication State (Google, GitHub, X, Email)
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('workmark_auth_token') !== null || true;
+    return localStorage.getItem('workmark_auth_token') !== null;
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin');
@@ -306,6 +307,25 @@ export default function App() {
 
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
   const unreadMessagesCount = conversations.reduce((acc, c) => acc + (c.unread || 0), 0);
+
+  // If not logged in, render the LinkedIn-style Landing Gateway
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LandingView
+          onLoginSuccess={handleLoginSuccess}
+          onExploreGuest={() => setIsAuthenticated(true)}
+          onOpenAuth={handleOpenAuth}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+          initialMode={authModalMode}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 font-sans transition-colors">

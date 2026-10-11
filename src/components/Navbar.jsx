@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import AtmosphereSelector from './AtmosphereSelector';
 import {
   Compass,
   Share2,
@@ -189,8 +188,6 @@ export default function Navbar({
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
           </button>
 
-          {/* 3D Light Atmosphere Selector */}
-          <AtmosphereSelector />
 
           {/* Authentication State: Logged In vs Logged Out */}
           {!isAuthenticated ? (
