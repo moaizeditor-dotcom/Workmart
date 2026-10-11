@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #0A66C2;
+    --color-accent: #0284C7;
+    --color-bg: #F8FAFC;
+    --color-card-bg: rgba(255, 255, 255, 0.95);
+    --color-border: #E2E8F0;
+    --color-text-main: #0F172A;
+    --color-text-muted: #64748B;
+  }
+
+  .dark {
+    --color-primary: #38BDF8;
+    --color-accent: #818CF8;
+    --color-bg: #0B0F19;
+    --color-card-bg: rgba(17, 24, 39, 0.88);
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-text-main: #F8FAFC;
+    --color-text-muted: #94A3B8;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* Light-First Luxury Glassmorphism & Cards */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+}
+
+.dark .glass-panel {
+  background: rgba(17, 24, 39, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(10, 102, 194, 0.4);
+  box-shadow: 0 12px 28px -6px rgba(10, 102, 194, 0.12);
+}
+
+.hologram-border {
+  position: relative;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.dark .hologram-border {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Smooth Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* 3D Container & Tilt Helpers */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* Shimmer & Sheen */
+.light-sheen-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.light-sheen-sweep::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 60%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: shimmer 6s infinite;
+}
