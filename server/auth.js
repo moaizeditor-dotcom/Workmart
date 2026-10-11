@@ -16,10 +16,6 @@ const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  if (process.env.NETLIFY) {
-    throw new Error('JWT_SECRET must be configured in the Netlify environment before the API can start.');
-  }
-
   if (fs.existsSync(SECRET_FILE)) {
     JWT_SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
   } else {
@@ -33,6 +29,10 @@ if (!JWT_SECRET) {
       }
       JWT_SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
     }
+  }
+
+  if (process.env.NETLIFY) {
+    console.warn('[Workmark Auth] JWT_SECRET is not configured; using an instance-local key. Configure JWT_SECRET in Netlify for stable sessions.');
   }
 }
 

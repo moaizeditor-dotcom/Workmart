@@ -4,10 +4,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+const originalCwd = process.cwd();
 const dataDir = mkdtempSync(path.join(tmpdir(), 'workmark-netlify-auth-'));
 process.env.NETLIFY = 'true';
 process.env.DATA_DIR = dataDir;
-process.env.JWT_SECRET = 'netlify-function-test-only-secret';
+delete process.env.JWT_SECRET;
 process.env.ADMIN_EMAIL = '';
 process.env.ADMIN_PASSWORD = '';
 process.env.GOOGLE_CLIENT_ID = 'test-google-id';
@@ -16,6 +17,7 @@ process.env.GITHUB_CLIENT_ID = 'test-github-id';
 process.env.GITHUB_CLIENT_SECRET = 'test-github-secret';
 process.env.TWITTER_CLIENT_ID = 'test-twitter-id';
 process.env.TWITTER_CLIENT_SECRET = 'test-twitter-secret';
+process.chdir(dataDir);
 
 const { handler } = await import('../netlify/functions/api.mjs');
 const { verifyOAuthState } = await import('../server/auth.js');
@@ -113,5 +115,6 @@ try {
   console.log('Netlify function verification passed.');
 } finally {
   db.close();
+  process.chdir(originalCwd);
   rmSync(dataDir, { recursive: true, force: true });
 }
