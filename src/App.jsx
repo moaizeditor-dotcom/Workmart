@@ -142,13 +142,14 @@ export default function App() {
   // Process incoming OAuth callbacks from URL params on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get('token');
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const tokenParam = hashParams.get('token') || params.get('token');
     const authErrorParam = params.get('auth_error');
 
     if (tokenParam) {
       setAuthToken(tokenParam);
       setIsAuthenticated(true);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
       refreshAppData();
     } else if (authErrorParam) {
       window.history.replaceState({}, document.title, window.location.pathname);

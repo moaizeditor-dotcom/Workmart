@@ -48,8 +48,23 @@ npm run build
 
 ---
 
-## 🛡️ Admin Login Credentials
-* **Admin Email:** `admin@workmark.io`
-* **Admin Password:** `workmark2026`
-*(A 1-Click "Instant Demo Access" button is also provided in the login modal for quick testing.)*
 # Workmark
+
+## Authentication and deployment configuration
+
+Email authentication uses the Express API and SQLite database. Set a strong,
+unique `JWT_SECRET` in the deployment environment. To provision an administrator,
+set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`; the application does not ship with
+public default administrator credentials, and new signups are not administrators.
+
+Google, GitHub, and Twitter/X sign-in require the corresponding provider client
+credentials and a callback URL registered with that provider. The callback URL
+is `https://<your-domain>/api/auth/callback/<provider>`. Twitter/X must return
+a verified email address for account creation; a synthetic email is not used.
+
+**Netlify limitation:** this project currently uses SQLite. Netlify function
+storage under `/tmp` is temporary and local to a function instance, so it is not
+a persistent shared production database. A persistent database and corresponding
+backend integration are required before production signup, login, and session
+verification can be considered reliable. `DATABASE_PATH` does not make Netlify
+function storage persistent.

@@ -38,9 +38,17 @@ async function runDirectAuthVerification() {
   test('SQLite users table exists', !!userTable);
 
   // 4. Admin Account in Database
-  const admin = db.prepare("SELECT id, email, is_admin, password_hash FROM users WHERE email = 'admin@workmart.com'").get();
-  test('Master administrator account exists in database', !!admin && admin.is_admin === 1);
-  test('Admin password matches AdminWorkMart2026!', await comparePassword('AdminWorkMart2026!', admin.password_hash) === true);
+  const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const admin = configuredAdminEmail
+    ? db.prepare('SELECT id, email, is_admin, password_hash FROM users WHERE email = ?').get(configuredAdminEmail)
+    : null;
+  if (configuredAdminEmail && process.env.ADMIN_PASSWORD) {
+    test('Configured administrator account exists', !!admin && admin.is_admin === 1);
+    test('Configured administrator password is active', admin && await comparePassword(process.env.ADMIN_PASSWORD, admin.password_hash));
+  } else {
+    const defaultAdmin = db.prepare("SELECT id FROM users WHERE email = 'admin@workmart.com' AND is_admin = 1").get();
+    test('No public default administrator account is provisioned', !defaultAdmin);
+  }
 
   // 5. Dynamic App URL Detection
   const mockReqLocal = { get: (h) => (h === 'host' ? 'localhost:3000' : h === 'x-forwarded-proto' ? 'http' : null) };

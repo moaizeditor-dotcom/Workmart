@@ -68,7 +68,6 @@ export default function AuthModal({
     e.preventDefault();
     setError('');
     setSuccessMsg('');
-    setOauthNotice(null);
 
     const emailTrimmed = email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

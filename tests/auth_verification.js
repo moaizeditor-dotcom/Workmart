@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = process.env.API_BASE || 'http://localhost:3001/api';
 
 async function runAuthTests() {
   console.log('=== STARTING WORKMARK AUTHENTICATION VERIFICATION SUITE ===');
@@ -62,6 +62,11 @@ async function runAuthTests() {
     (callbackRes.status === 302 || callbackRes.status === 301) &&
     locationHeader.includes('auth_error=')
   );
+  const invalidStateRes = await fetch(`${API_BASE}/auth/callback/google?code=fake-code&state=invalid`, { redirect: 'manual' });
+  test('Rejects OAuth callbacks without a valid state cookie before provider exchange',
+    (invalidStateRes.status === 302 || invalidStateRes.status === 301) &&
+    (invalidStateRes.headers.get('location') || '').includes('OAuth%20state%20validation%20failed')
+  );
 
   // 4. Reject dummy/fake email injection on /api/auth/social
   const dummyRes = await fetch(`${API_BASE}/auth/social`, {
@@ -95,6 +100,18 @@ async function runAuthTests() {
   test('Registers real user account with 201', registerRes.status === 201);
   test('Returns valid JWT token', typeof regData.token === 'string' && regData.token.length > 20);
   test('Returns sanitized user object without password_hash', regData.user && !regData.user.password_hash);
+  test('New email accounts are not granted administrator access', regData.user?.is_admin === 0);
+
+  const duplicateRes = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Alex Smith',
+      email: realEmail,
+      password: 'AnotherStrongPassword2026'
+    })
+  });
+  test('Rejects duplicate email registration with 409', duplicateRes.status === 409);
 
   const userToken = regData.token;
 

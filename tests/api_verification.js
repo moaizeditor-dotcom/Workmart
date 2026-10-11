@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = process.env.API_BASE || 'http://localhost:3001/api';
 
 async function runTests() {
   console.log('--- STARTING WORKMARK BACKEND END-TO-END VERIFICATION ---');
@@ -51,7 +51,7 @@ async function runTests() {
       password: 'AnotherPassword'
     })
   });
-  test('Rejects duplicate email registration with status 400', res3.status === 400);
+  test('Rejects duplicate email registration with status 409', res3.status === 409);
 
   // 4. Invalid credentials login
   const res4 = await fetch(`${API_BASE}/auth/login`, {

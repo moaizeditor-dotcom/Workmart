@@ -1,13 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
-
-try {
-  process.loadEnvFile();
-} catch (_) {}
+import './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,14 +16,23 @@ const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
+  if (process.env.NETLIFY) {
+    throw new Error('JWT_SECRET must be configured in the Netlify environment before the API can start.');
+  }
+
   if (fs.existsSync(SECRET_FILE)) {
     JWT_SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
   } else {
-    JWT_SECRET = 'workmark_sec_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    JWT_SECRET = randomBytes(48).toString('base64url');
+    fs.mkdirSync(SECRET_DIR, { recursive: true });
     try {
-      if (!fs.existsSync(SECRET_DIR)) fs.mkdirSync(SECRET_DIR, { recursive: true });
-      fs.writeFileSync(SECRET_FILE, JWT_SECRET, 'utf8');
-    } catch (_) {}
+      fs.writeFileSync(SECRET_FILE, JWT_SECRET, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+      JWT_SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
+    }
   }
 }
 
@@ -55,6 +62,30 @@ export const verifyToken = (token) => {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (err) {
+    return null;
+  }
+};
+
+export const createOAuthState = (provider) => {
+  const nonce = randomBytes(32).toString('base64url');
+  const verifier = provider === 'twitter' ? randomBytes(32).toString('base64url') : undefined;
+  const state = jwt.sign({ provider, nonce, verifier }, JWT_SECRET, { expiresIn: '10m' });
+  return { state, nonce, verifier };
+};
+
+export const verifyOAuthState = (state, provider, nonce) => {
+  try {
+    const payload = jwt.verify(state, JWT_SECRET);
+    if (payload.provider !== provider || typeof payload.nonce !== 'string' || typeof nonce !== 'string') {
+      return null;
+    }
+    const expected = Buffer.from(payload.nonce);
+    const actual = Buffer.from(nonce);
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+      return null;
+    }
+    return { verifier: payload.verifier };
+  } catch {
     return null;
   }
 };

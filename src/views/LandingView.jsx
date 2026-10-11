@@ -46,7 +46,6 @@ export default function LandingView({
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setOauthNotice(null);
 
     const emailTrimmed = email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

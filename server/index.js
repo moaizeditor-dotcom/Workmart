@@ -5,14 +5,14 @@ import {
   hashPassword,
   comparePassword,
   generateToken,
+  createOAuthState,
+  verifyOAuthState,
   requireAuth,
   optionalAuth,
   requireAdmin
 } from './auth.js';
-
-try {
-  process.loadEnvFile();
-} catch (_) {}
+import { createHash } from 'node:crypto';
+import './config.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,16 +40,49 @@ export const getAppUrl = (req) => {
 };
 
 app.use(cors());
+app.use((req, res, next) => {
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return next();
+  }
+  if (req.body.length > 15 * 1024 * 1024) {
+    return res.status(413).json({ error: 'Request body must be no larger than 15 MB.' });
+  }
+  if (!req.is('application/json')) {
+    return next();
+  }
+  try {
+    req.body = JSON.parse(req.body.toString('utf8'));
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ error: 'Request body contains invalid JSON.' });
+    }
+    return next(error);
+  }
+  return next();
+});
 app.use(express.json({ limit: '15mb' }));
 
 // Helper to generate IDs
 const uid = (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+const getOAuthCookieName = (provider) => `workmark_oauth_${provider}`;
+const readCookie = (req, name) => {
+  const cookie = req.headers.cookie
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  return cookie ? cookie.slice(name.length + 1) : null;
+};
 
 // Administrator Account Provisioning & Synchronization
 const ensureAdminUser = async () => {
   try {
-    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@workmart.com').trim().toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminWorkMart2026!';
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      console.info('[WorkMart Admin] Provisioning skipped; configure ADMIN_EMAIL and ADMIN_PASSWORD to enable an administrator account.');
+      return;
+    }
+
     const passwordHash = await hashPassword(adminPassword);
 
     const existingAdmin = db.prepare('SELECT id, is_admin FROM users WHERE email = ?').get(adminEmail);
@@ -97,15 +130,15 @@ ensureAdminUser();
 // Register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role } = req.body || {};
 
-    if (!name || !name.trim()) {
+    if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Full name is required.' });
     }
-    if (!email || !email.includes('@')) {
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({ error: 'Valid email address is required.' });
     }
-    if (!password || password.length < 6) {
+    if (typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
@@ -114,7 +147,7 @@ app.post('/api/auth/register', async (req, res) => {
     // Check if user already exists
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
     if (existing) {
-      return res.status(400).json({ error: 'An account with this email address already exists.' });
+      return res.status(409).json({ error: 'An account with this email address already exists.' });
     }
 
     const passwordHash = await hashPassword(password);
@@ -127,10 +160,6 @@ app.post('/api/auth/register', async (req, res) => {
     if (handleCheck) {
       handle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
     }
-
-    // First user can be admin if no other user exists, or regular user
-    const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
-    const isAdmin = userCount === 0 ? 1 : 0;
 
     const defaultAvatar = `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`;
     const defaultBanner = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80`;
@@ -157,7 +186,7 @@ app.post('/api/auth/register', async (req, res) => {
       'Verified member of the Workmark talent network.',
       950,
       1, // verified
-      isAdmin,
+      0,
       'local',
       now
     );
@@ -167,6 +196,9 @@ app.post('/api/auth/register', async (req, res) => {
 
     return res.status(201).json({ user: newUser, token });
   } catch (err) {
+    if (err.message?.includes('UNIQUE constraint failed: users.email')) {
+      return res.status(409).json({ error: 'An account with this email address already exists.' });
+    }
     console.error('Registration error:', err);
     return res.status(500).json({ error: 'Server error during registration.' });
   }
@@ -175,9 +207,9 @@ app.post('/api/auth/register', async (req, res) => {
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
-    if (!email || !password) {
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
@@ -234,11 +266,31 @@ app.get('/api/auth/oauth/:provider', (req, res) => {
   const { provider } = req.params;
   const currentAppUrl = getAppUrl(req);
   const callbackUrl = `${currentAppUrl}/api/auth/callback/${provider}`;
+  const providerCredentials = {
+    google: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+    github: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
+    twitter: ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET']
+  }[provider];
+
+  if (!providerCredentials) {
+    return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(`Unsupported OAuth provider: ${provider}`)}`);
+  }
+  const missingCredentials = providerCredentials.filter((name) => !process.env[name]);
+  if (missingCredentials.length) {
+    const providerName = { google: 'Google', github: 'GitHub', twitter: 'Twitter/X' }[provider];
+    return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(`${providerName} OAuth is not configured. Missing ${missingCredentials.join(' and ')}.`)}`);
+  }
+
+  const { state, nonce, verifier } = createOAuthState(provider);
+  res.cookie(getOAuthCookieName(provider), nonce, {
+    httpOnly: true,
+    secure: callbackUrl.startsWith('https://'),
+    sameSite: 'lax',
+    path: `/api/auth/callback/${provider}`,
+    maxAge: 10 * 60 * 1000
+  });
 
   if (provider === 'google') {
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('Google OAuth is not configured on this server. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET.')}`);
-    }
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: callbackUrl,
@@ -246,49 +298,55 @@ app.get('/api/auth/oauth/:provider', (req, res) => {
       scope: 'openid profile email',
       access_type: 'offline',
       prompt: 'select_account',
-      state: uid('state')
+      state
     });
     return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
   }
 
   if (provider === 'github') {
-    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('GitHub OAuth is not configured on this server. Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET.')}`);
-    }
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID,
       redirect_uri: callbackUrl,
       scope: 'read:user user:email',
-      state: uid('state')
+      state
     });
     return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
   }
 
   if (provider === 'twitter') {
-    if (!process.env.TWITTER_CLIENT_ID || !process.env.TWITTER_CLIENT_SECRET) {
-      return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('Twitter/X OAuth is not configured on this server. Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET.')}`);
-    }
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.TWITTER_CLIENT_ID,
       redirect_uri: callbackUrl,
       scope: 'users.read tweet.read',
-      state: uid('state'),
-      code_challenge: 'challenge',
-      code_challenge_method: 'plain'
+      state,
+      code_challenge: challenge,
+      code_challenge_method: 'S256'
     });
     return res.redirect(`https://twitter.com/i/oauth2/authorize?${params.toString()}`);
   }
-
-  return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(`Unsupported OAuth provider: ${provider}`)}`);
 });
 
 // OAuth Callback (Code Exchange & User Session Generation)
 app.get('/api/auth/callback/:provider', async (req, res) => {
   const { provider } = req.params;
-  const { code, error, error_description } = req.query;
+  const { code, error, error_description, state } = req.query;
   const currentAppUrl = getAppUrl(req);
   const callbackUrl = `${currentAppUrl}/api/auth/callback/${provider}`;
+  const cookieName = getOAuthCookieName(provider);
+  const stateContext = typeof state === 'string'
+    ? verifyOAuthState(state, provider, readCookie(req, cookieName))
+    : null;
+  res.clearCookie(cookieName, {
+    secure: callbackUrl.startsWith('https://'),
+    sameSite: 'lax',
+    path: `/api/auth/callback/${provider}`
+  });
+
+  if (!stateContext) {
+    return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent('OAuth state validation failed. Please start sign-in again.')}`);
+  }
 
   if (error || !code) {
     const errorMsg = error_description || error || 'OAuth authorization cancelled or failed.';
@@ -296,12 +354,24 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
   }
 
   try {
+    const oauthDeadline = Date.now() + 7000;
+    const fetchProvider = (url, options) => {
+      const remaining = oauthDeadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error('OAuth provider request timed out. Please try again.');
+      }
+      return fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(Math.min(remaining, 4000))
+      });
+    };
+
     let email = null;
     let name = null;
     let avatar = null;
 
     if (provider === 'google') {
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      const tokenRes = await fetchProvider('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -317,15 +387,18 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
         throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange Google OAuth code.');
       }
 
-      const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      const profileRes = await fetchProvider('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` }
       });
       const profile = await profileRes.json();
+      if (!profileRes.ok || profile.verified_email !== true) {
+        throw new Error('Google did not return a verified email address for this account.');
+      }
       email = profile.email;
       name = profile.name || profile.given_name || 'Google User';
       avatar = profile.picture;
     } else if (provider === 'github') {
-      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      const tokenRes = await fetchProvider('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -343,33 +416,39 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
         throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange GitHub OAuth code.');
       }
 
-      const profileRes = await fetch('https://api.github.com/user', {
+      const profileRes = await fetchProvider('https://api.github.com/user', {
         headers: {
           Authorization: `Bearer ${tokenData.access_token}`,
           'User-Agent': 'Workmark-App'
         }
       });
       const profile = await profileRes.json();
+      if (!profileRes.ok) {
+        throw new Error('Unable to read the GitHub account profile.');
+      }
       name = profile.name || profile.login || 'GitHub Developer';
       avatar = profile.avatar_url;
       email = profile.email;
 
       if (!email) {
-        const emailsRes = await fetch('https://api.github.com/user/emails', {
+        const emailsRes = await fetchProvider('https://api.github.com/user/emails', {
           headers: {
             Authorization: `Bearer ${tokenData.access_token}`,
             'User-Agent': 'Workmark-App'
           }
         });
         const emails = await emailsRes.json();
+        if (!emailsRes.ok) {
+          throw new Error('Unable to read verified GitHub email addresses.');
+        }
         if (Array.isArray(emails)) {
-          const primary = emails.find((e) => e.primary && e.verified) || emails[0];
+          const primary = emails.find((e) => e.primary && e.verified);
           if (primary) email = primary.email;
         }
       }
     } else if (provider === 'twitter') {
       const basicAuth = Buffer.from(`${process.env.TWITTER_CLIENT_ID}:${process.env.TWITTER_CLIENT_SECRET}`).toString('base64');
-      const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+      const tokenRes = await fetchProvider('https://api.twitter.com/2/oauth2/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -380,7 +459,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
           grant_type: 'authorization_code',
           client_id: process.env.TWITTER_CLIENT_ID,
           redirect_uri: callbackUrl,
-          code_verifier: 'challenge'
+          code_verifier: stateContext.verifier
         })
       });
       const tokenData = await tokenRes.json();
@@ -388,20 +467,24 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
         throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange Twitter OAuth code.');
       }
 
-      const profileRes = await fetch('https://api.twitter.com/2/users/me?user.fields=profile_image_url', {
+      const profileRes = await fetchProvider('https://api.twitter.com/2/users/me?user.fields=profile_image_url', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` }
       });
       const profileJson = await profileRes.json();
+      if (!profileRes.ok) {
+        throw new Error('Unable to read the Twitter/X account profile.');
+      }
       const profile = profileJson.data || {};
       name = profile.name || profile.username || 'Twitter User';
-      email = profile.username ? `${profile.username.toLowerCase()}@x.com` : null;
+      email = profile.email || null;
       avatar = profile.profile_image_url;
     } else {
       throw new Error(`Unsupported OAuth provider: ${provider}`);
     }
 
     if (!email) {
-      throw new Error(`Could not retrieve verified email from ${provider}.`);
+      const providerName = provider === 'twitter' ? 'Twitter/X' : provider;
+      throw new Error(`${providerName} did not provide a verified email address. Use email sign-in or configure a provider that returns verified email.`);
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -418,8 +501,6 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
 
       const defaultAvatar = avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
       const defaultBanner = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80';
-      const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
-      const isAdmin = userCount === 0 ? 1 : 0;
       const now = Date.now();
 
       db.prepare(`
@@ -441,7 +522,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
         `Verified member authenticated via ${provider.toUpperCase()}.`,
         960,
         1,
-        isAdmin,
+        0,
         provider,
         now
       );
@@ -457,7 +538,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
     const { password_hash, ...safeUser } = user;
     const token = generateToken(safeUser);
 
-    return res.redirect(`${currentAppUrl}/?token=${token}`);
+    return res.redirect(`${currentAppUrl}/#token=${encodeURIComponent(token)}`);
   } catch (err) {
     console.error(`OAuth callback error [${provider}]:`, err);
     return res.redirect(`${currentAppUrl}/?auth_error=${encodeURIComponent(err.message || 'OAuth authentication failed')}`);
@@ -466,60 +547,9 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
 
 // Social Auth API (requires verified email, rejects dummy fallbacks)
 app.post('/api/auth/social', async (req, res) => {
-  try {
-    const { provider, name, email, avatar } = req.body;
-    if (!provider) {
-      return res.status(400).json({ error: 'OAuth provider required.' });
-    }
-    if (!email || !email.includes('@') || email.includes('@workmark.io') || email.includes('@workmark.local')) {
-      return res.status(400).json({ error: 'Valid verified email is required for social authentication.' });
-    }
-
-    const userEmail = email.trim().toLowerCase();
-    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(userEmail);
-
-    if (!user) {
-      const userId = uid('usr');
-      const displayName = name || `${provider.toUpperCase()} Professional`;
-      const handle = `@${displayName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.floor(100 + Math.random() * 900)}`;
-      const userAvatar = avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
-      const now = Date.now();
-
-      db.prepare(`
-        INSERT INTO users (
-          id, name, handle, email, password_hash, role, company, location,
-          avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        userId,
-        displayName,
-        handle,
-        userEmail,
-        null,
-        'Technology Professional',
-        'Independent Network',
-        'San Francisco, CA',
-        userAvatar,
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-        `Authenticated via verified ${provider.toUpperCase()} login.`,
-        960,
-        1,
-        0,
-        provider,
-        now
-      );
-
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    }
-
-    const { password_hash, ...safeUser } = user;
-    const token = generateToken(safeUser);
-
-    return res.json({ user: safeUser, token });
-  } catch (err) {
-    console.error('Social auth error:', err);
-    return res.status(500).json({ error: 'Failed to authenticate social account.' });
-  }
+  return res.status(400).json({
+    error: 'Unverified social profile data is not accepted. Complete authentication through /api/auth/oauth/:provider.'
+  });
 });
 
 // Get Current User Profile (Me)
