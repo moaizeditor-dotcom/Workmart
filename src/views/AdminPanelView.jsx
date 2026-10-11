@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card3DTilt from '../components/Card3DTilt';
-import { initialAdminStats } from '../data/mockData';
+import { getAdminStats, getAdminUsers } from '../api';
 import {
   Users,
   TrendingUp,
@@ -20,15 +20,71 @@ import {
   LogOut
 } from 'lucide-react';
 
+const defaultStats = {
+  kpis: {
+    totalUsers: '0',
+    userGrowth: '+0%',
+    dailyActiveUsers: '0',
+    verifiedProofs: '0',
+    activeJobs: '0',
+    platformARR: '$0',
+    systemUptime: '99.99%'
+  }
+};
+
 export default function AdminPanelView({ onLogout }) {
-  const [stats, setStats] = useState(initialAdminStats);
-  const [userList, setUserList] = useState(initialAdminStats.managedUsers);
+  const [stats, setStats] = useState(defaultStats);
+  const [userList, setUserList] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [selectedTimeframe, setSelectedTimeframe] = useState('6M');
 
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const statsRes = await getAdminStats();
+        if (statsRes?.stats) {
+          setStats({
+            kpis: {
+              totalUsers: `${statsRes.stats.registeredUsers || 0}`,
+              userGrowth: '+100%',
+              dailyActiveUsers: `${statsRes.stats.registeredUsers || 0}`,
+              verifiedProofs: `${statsRes.stats.activePosts || 0}`,
+              activeJobs: `${statsRes.stats.jobsPosted || 0}`,
+              platformARR: `$${(statsRes.stats.jobsPosted || 0) * 1200}`,
+              systemUptime: statsRes.stats.uptime || '99.99%'
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Fetch admin stats error:', err);
+      }
+
+      try {
+        const usersRes = await getAdminUsers();
+        if (usersRes?.users) {
+          setUserList(
+            usersRes.users.map((u) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              role: u.role || 'Verified Expert',
+              avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              score: u.workmark_score || 950,
+              status: 'Active'
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('Fetch admin users error:', err);
+      }
+    };
+
+    fetchAdminData();
+  }, []);
+
   const handleToggleStatus = (id) => {
-    setUserList(
-      userList.map((u) => {
+    setUserList((prev) =>
+      prev.map((u) => {
         if (u.id === id) {
           const newStatus = u.status === 'Active' ? 'Suspended' : 'Active';
           return { ...u, status: newStatus };
@@ -39,8 +95,8 @@ export default function AdminPanelView({ onLogout }) {
   };
 
   const handleToggleVerify = (id) => {
-    setUserList(
-      userList.map((u) => {
+    setUserList((prev) =>
+      prev.map((u) => {
         if (u.id === id) {
           const newRole = u.role.includes('Verified') ? 'Standard' : 'Verified Expert';
           return { ...u, role: newRole };
@@ -50,10 +106,10 @@ export default function AdminPanelView({ onLogout }) {
     );
   };
 
-  const filteredUsers = userList.filter((u) =>
-    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.role.toLowerCase().includes(userSearch.toLowerCase())
+  const filteredUsers = (userList || []).filter((u) =>
+    (u.name || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+    (u.role || '').toLowerCase().includes(userSearch.toLowerCase())
   );
 
   return (
@@ -286,7 +342,14 @@ export default function AdminPanelView({ onLogout }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredUsers.map((u) => {
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-400 font-mono text-xs">
+                    No registered members matching criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((u) => {
                 const isActive = u.status === 'Active';
                 return (
                   <tr key={u.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
@@ -341,7 +404,7 @@ export default function AdminPanelView({ onLogout }) {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

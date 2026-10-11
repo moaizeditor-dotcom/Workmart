@@ -35,26 +35,7 @@ export default function NetworkView({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | '3d'
 
   // Pending Invitations List State (LinkedIn Exact Feature)
-  const [invitations, setInvitations] = useState([
-    {
-      id: 'inv_1',
-      name: 'Elena Rostova',
-      role: 'Staff Kernel Architect at Apex Systems',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80',
-      mutual: 34,
-      score: 98.4,
-      note: 'Hi Alex, followed your consensus benchmark paper. Would love to connect and exchange notes on distributed memory synchronization!'
-    },
-    {
-      id: 'inv_2',
-      name: 'Marcus Sterling',
-      role: 'Chief Product Officer at Apex Spatial',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&auto=format&fit=crop&q=80',
-      mutual: 19,
-      score: 96.8,
-      note: 'Loved your 3D UI architecture article. Would love to stay connected!'
-    }
-  ]);
+  const [invitations, setInvitations] = useState([]);
 
   // Connect With Note Modal
   const [connectTarget, setConnectTarget] = useState(null);
@@ -139,6 +120,7 @@ export default function NetworkView({
       {/* 3D Sphere Interactive Mode (Majestic Full Size Mode) */}
       {viewMode === '3d' && (
         <ConstellationGlobe
+          nodes={filteredNodes}
           onSelectNode={(node) => {
             console.log('Selected node in 3D:', node);
           }}
@@ -279,7 +261,12 @@ export default function NetworkView({
 
             {/* Grid of Candidate Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredNodes.map((peer) => {
+              {filteredNodes.length === 0 ? (
+                <div className="col-span-full p-12 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 font-mono text-xs">
+                  No peers currently matching your criteria.
+                </div>
+              ) : (
+                filteredNodes.map((peer) => {
                 const isConnected = peer.status === 'connected';
 
                 return (
@@ -344,7 +331,7 @@ export default function NetworkView({
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </main>

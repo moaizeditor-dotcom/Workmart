@@ -56,22 +56,6 @@ export default function MessagingView({
     if (onSendMessage) {
       onSendMessage(activeConv.id, userText, 'me');
     }
-
-    // Simulate verified peer automatic response after 2.4s
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const responses = [
-        `Thanks for sharing! Reviewing the technical distribution and benchmarks now.`,
-        `Fascinating architecture. Let's schedule a 20-min sync to discuss integration!`,
-        `Received the dossier. Impressive metrics on the consensus engine!`,
-        `Agreed. Our team is solving similar throughput hurdles in production.`
-      ];
-      const randomReply = responses[Math.floor(Math.random() * responses.length)];
-      if (onSendMessage) {
-        onSendMessage(activeConv.id, randomReply, 'peer');
-      }
-    }, 2400);
   };
 
   const handleStartNewChat = (peer) => {

@@ -1,39 +1,33 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Lock, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { loginUser } from '../api';
 
 export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
-  const [email, setEmail] = useState('admin@workmark.io');
-  const [password, setPassword] = useState('workmark2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      if (email === 'admin@workmark.io' && password === 'workmark2026') {
+    try {
+      const res = await loginUser({ email: email.trim(), password });
+      if (res.user && res.user.is_admin === 1) {
         onLoginSuccess();
         onClose();
       } else {
-        setError('Invalid administrative credentials. Please verify your system authorization.');
+        setError('This account does not have administrative privileges.');
       }
+    } catch (err) {
+      setError(err.message || 'Invalid administrator credentials.');
+    } finally {
       setLoading(false);
-    }, 500);
-  };
-
-  const handleQuickLogin = () => {
-    setEmail('admin@workmark.io');
-    setPassword('workmark2026');
-    setLoading(true);
-    setTimeout(() => {
-      onLoginSuccess();
-      onClose();
-      setLoading(false);
-    }, 300);
+    }
   };
 
   return (
@@ -46,7 +40,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Admin Control Tower</h3>
-              <p className="text-xs text-slate-500">Restricted operational gateway</p>
+              <p className="text-xs text-slate-500">Restricted administrative gateway</p>
             </div>
           </div>
           <button
@@ -58,32 +52,18 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-600 flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Executive Quick Access Banner */}
-        <div className="mb-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between text-xs">
-          <div>
-            <div className="font-bold text-slate-900 dark:text-white">Operations Root Credentials</div>
-            <div className="text-[11px] font-mono text-slate-500">admin@workmark.io · workmark2026</div>
-          </div>
-          <button
-            type="button"
-            onClick={handleQuickLogin}
-            className="px-3 py-1.5 rounded-xl bg-[#0A66C2] text-white font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs"
-          >
-            Authenticate
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Root Email</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Admin Email</label>
             <input
               type="email"
+              placeholder="admin@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
@@ -92,9 +72,10 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
           </div>
 
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Authorization Secret</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Admin Password</label>
             <input
               type="password"
+              placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-[#0A66C2]"
@@ -115,7 +96,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
               disabled={loading}
               className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all shadow-md shadow-rose-600/20"
             >
-              {loading ? 'Verifying...' : 'Authorize Access'}
+              {loading ? 'Authenticating...' : 'Authorize Admin'}
             </button>
           </div>
         </form>

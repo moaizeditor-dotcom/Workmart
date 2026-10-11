@@ -30,7 +30,14 @@ import {
   Check
 } from 'lucide-react';
 
-export default function ProfileView({ user, onUpdateUser }) {
+export default function ProfileView({
+  user,
+  onUpdateUser,
+  onAddArtifact,
+  onDeleteArtifact,
+  onAddSkill,
+  onEndorseSkill
+}) {
   const [activeTab, setActiveTab] = useState('artifacts');
 
   // Modal States
@@ -138,6 +145,9 @@ export default function ProfileView({ user, onUpdateUser }) {
       ...user,
       artifacts: [newArt, ...(user.artifacts || [])]
     });
+    if (onAddArtifact) {
+      onAddArtifact(newArt);
+    }
 
     setArtifactForm({
       title: '',
@@ -159,6 +169,9 @@ export default function ProfileView({ user, onUpdateUser }) {
       ...user,
       artifacts: user.artifacts.filter((a) => a.id !== artId)
     });
+    if (onDeleteArtifact) {
+      onDeleteArtifact(artId);
+    }
   };
 
   const handleAddExperience = (e) => {
@@ -223,11 +236,15 @@ export default function ProfileView({ user, onUpdateUser }) {
       ...user,
       skills: [...(user.skills || []), newSkill]
     });
+    if (onAddSkill) {
+      onAddSkill(skillName.trim(), 90);
+    }
     setSkillName('');
     setIsAddSkillOpen(false);
   };
 
   const handleEndorseSkill = (sName) => {
+    const targetSkill = (user.skills || []).find((s) => s.name === sName);
     onUpdateUser({
       ...user,
       skills: user.skills.map((s) => {
@@ -241,6 +258,9 @@ export default function ProfileView({ user, onUpdateUser }) {
         return s;
       })
     });
+    if (onEndorseSkill && targetSkill?.id) {
+      onEndorseSkill(targetSkill.id);
+    }
   };
 
   return (

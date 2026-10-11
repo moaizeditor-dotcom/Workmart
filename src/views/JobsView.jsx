@@ -48,9 +48,9 @@ export default function JobsView({
   // 1-Click Easy Apply Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [applyForm, setApplyForm] = useState({
-    fullName: currentUser.name,
-    email: currentUser.email || 'alex.vance@novadynamics.io',
-    phone: '+1 (415) 892-0192',
+    fullName: currentUser.name || '',
+    email: currentUser.email || '',
+    phone: currentUser.phone || '',
     workmarkDossierIncluded: true,
     coverNote: ''
   });
@@ -60,13 +60,13 @@ export default function JobsView({
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
   const [postJobForm, setPostJobForm] = useState({
     title: '',
-    company: currentUser.company || 'Nova Dynamics',
-    location: 'Remote / San Francisco',
+    company: currentUser.company || '',
+    location: 'Remote / Hybrid',
     type: 'Full-time · Staff Tier',
-    salary: '$220,000 - $320,000 + Equity',
-    skills: 'Rust, Distributed Systems, WebGL',
-    description: 'We are expanding our core spatial architecture infrastructure...',
-    benefits: 'Unlimited hardware budget, 100% remote flexibility, Top tier health'
+    salary: '$180,000 - $260,000',
+    skills: 'Distributed Systems, Cloud Architecture',
+    description: '',
+    benefits: 'Remote flexibility, Comprehensive health coverage, Equipment budget'
   });
 
   // Handle Apply Submission
@@ -115,13 +115,13 @@ export default function JobsView({
     // Reset Form
     setPostJobForm({
       title: '',
-      company: currentUser.company || 'Nova Dynamics',
-      location: 'Remote / San Francisco',
+      company: currentUser.company || '',
+      location: 'Remote / Hybrid',
       type: 'Full-time · Staff Tier',
-      salary: '$220,000 - $320,000 + Equity',
-      skills: 'Rust, WebGPU, Distributed Systems',
-      description: 'Lead the next generation of spatial architecture...',
-      benefits: 'Unlimited hardware budget, 100% remote flexibility, Top tier health'
+      salary: '$180,000 - $260,000',
+      skills: 'Distributed Systems, Cloud Architecture',
+      description: '',
+      benefits: 'Remote flexibility, Comprehensive health coverage, Equipment budget'
     });
     setIsPostJobModalOpen(false);
   };
@@ -255,8 +255,27 @@ export default function JobsView({
           {/* Left Column: Job Cards List */}
           <div className="lg:col-span-7 space-y-4">
             {filteredJobs.length === 0 ? (
-              <div className="p-16 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 font-mono text-xs">
-                No matching opportunities found.
+              <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A66C2] flex items-center justify-center mx-auto">
+                  <Briefcase className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">No active roles found</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    {activeTab === 'saved'
+                      ? 'You have not bookmarked any career opportunities yet.'
+                      : 'Be the first hiring manager or technical recruiter to list an opening!'}
+                  </p>
+                </div>
+                {activeTab !== 'saved' && (
+                  <button
+                    onClick={() => setIsPostJobModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0A66C2] text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Post an Opportunity</span>
+                  </button>
+                )}
               </div>
             ) : (
               filteredJobs.map((job) => {

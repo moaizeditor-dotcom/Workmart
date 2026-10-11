@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { networkNodes } from '../data/mockData';
 import { UserCheck, Sparkles, ExternalLink, ShieldCheck } from 'lucide-react';
 
-export default function ConstellationGlobe({ onSelectNode }) {
+export default function ConstellationGlobe({ nodes = [], onSelectNode }) {
   const mountRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [activeFilter, setActiveFilter] = useState('All');
@@ -73,10 +73,11 @@ export default function ConstellationGlobe({ onSelectNode }) {
     const nodeDataMap = new Map();
 
     const nodeGeometry = new THREE.SphereGeometry(2.4, 16, 16);
+    const activeNodes = Array.isArray(nodes) ? nodes : [];
 
-    networkNodes.forEach((node, idx) => {
+    activeNodes.forEach((node, idx) => {
       // Map coordinates around the sphere
-      const phi = (idx / networkNodes.length) * Math.PI * 2;
+      const phi = (idx / (activeNodes.length || 1)) * Math.PI * 2;
       const theta = ((idx % 3) + 1) * (Math.PI / 4);
       const r = 40;
 

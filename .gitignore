@@ -25,3 +25,8 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# SQLite database
+*.sqlite
+*.sqlite-journal
+data/

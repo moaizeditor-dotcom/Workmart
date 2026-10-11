@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Card3DTilt from '../components/Card3DTilt';
 import ProofOfWorkBadge from '../components/ProofOfWorkBadge';
 import BorderBeam from '../components/BorderBeam';
+import { reactPost, votePoll, addComment } from '../api';
 import {
   Sparkles,
   Send,
@@ -171,6 +172,7 @@ export default function FeedView({
     });
 
     updatePostsAndSync(updated);
+    reactPost(postId, reactionType).catch((err) => console.error('Reaction API error:', err));
   };
 
   const handleVotePoll = (postId, optIndex) => {
@@ -197,6 +199,7 @@ export default function FeedView({
     });
 
     updatePostsAndSync(updated);
+    votePoll(postId, optIndex).catch((err) => console.error('Vote poll API error:', err));
   };
 
   const handleAddComment = (postId) => {
@@ -224,6 +227,7 @@ export default function FeedView({
 
     updatePostsAndSync(updated);
     setCommentInputs({ ...commentInputs, [postId]: '' });
+    addComment(postId, text).catch((err) => console.error('Add comment API error:', err));
   };
 
   const handleConfirmRepost = () => {
@@ -388,8 +392,23 @@ export default function FeedView({
           {/* Posts Feed Stream */}
           <div className="space-y-6">
             {displayedPosts.length === 0 ? (
-              <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 font-mono text-xs">
-                No posts found in this view.
+              <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A66C2] flex items-center justify-center mx-auto">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Feed is quiet</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Be the first to share an engineering insight, verified code snippet, or start a poll for the network!
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleOpenCreateModal('text')}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0A66C2] text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Start a Post</span>
+                </button>
               </div>
             ) : (
               displayedPosts.map((post) => {

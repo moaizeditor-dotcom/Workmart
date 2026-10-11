@@ -12,113 +12,135 @@ import AdminPanelView from './views/AdminPanelView';
 import AdminLoginModal from './components/AdminLoginModal';
 import AuthModal from './components/AuthModal';
 import LandingView from './views/LandingView';
+
 import {
-  loadInitialAppData,
-  setStoredItem,
-  STORAGE_KEYS,
-  resetAllData
-} from './utils/storage';
+  getAuthToken,
+  setAuthToken,
+  getMe,
+  getPosts,
+  createPost as apiCreatePost,
+  reactPost as apiReactPost,
+  votePoll as apiVotePoll,
+  addComment as apiAddComment,
+  getJobs,
+  createJob as apiCreateJob,
+  applyJob as apiApplyJob,
+  getMyApplications,
+  getNetwork,
+  connectUser as apiConnectUser,
+  getMessages,
+  sendMessage as apiSendMessage,
+  getNotifications,
+  markNotificationsRead,
+  updateProfile as apiUpdateProfile,
+  addArtifact as apiAddArtifact,
+  deleteArtifact as apiDeleteArtifact,
+  addSkill as apiAddSkill,
+  endorseSkill as apiEndorseSkill,
+  logoutUser
+} from './api';
 
 export default function App() {
-  // Load initial persistent state from localStorage
-  const initialData = loadInitialAppData();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!getAuthToken());
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Core Data
   const [activeTab, setActiveTab] = useState('feed');
-  const [currentUser, setCurrentUser] = useState(initialData.user);
-  const [posts, setPosts] = useState(initialData.posts);
-  const [networkNodes, setNetworkNodes] = useState(initialData.nodes);
-  const [jobs, setJobs] = useState(initialData.jobs);
-  const [applications, setApplications] = useState(initialData.applications);
-  const [conversations, setConversations] = useState(initialData.messages);
-  const [notifications, setNotifications] = useState(initialData.notifications);
-  const [savedPostIds, setSavedPostIds] = useState(initialData.savedPosts);
-  const [savedJobIds, setSavedJobIds] = useState(initialData.savedJobs);
+  const [posts, setPosts] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [networkNodes, setNetworkNodes] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [savedPostIds, setSavedPostIds] = useState([]);
+  const [savedJobIds, setSavedJobIds] = useState([]);
 
-  // Authentication State (Google, GitHub, X, Email)
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('workmark_auth_token') !== null;
-  });
+  // Modals & Admin
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin');
-
-  // Admin Auth State
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  // Theme State: Default is Light Theme
-  const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem('workmark_theme') === 'dark';
-  });
+  // Theme State
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('workmark_theme') === 'dark');
 
   const handleToggleTheme = () => {
     setIsDark((prev) => {
       const next = !prev;
       localStorage.setItem('workmark_theme', next ? 'dark' : 'light');
-      if (next) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      if (next) document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
       return next;
     });
   };
 
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDark) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDark]);
 
-  // Sync state changes to localStorage
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.USER, currentUser);
-  }, [currentUser]);
+  // Load Real Data from Backend
+  const refreshAppData = async () => {
+    try {
+      // 1. Fetch Posts
+      const postsRes = await getPosts().catch(() => ({ posts: [] }));
+      setPosts(postsRes.posts || []);
 
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.POSTS, posts);
-  }, [posts]);
+      // 2. Fetch Jobs
+      const jobsRes = await getJobs().catch(() => ({ jobs: [] }));
+      setJobs(jobsRes.jobs || []);
 
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.NETWORK, networkNodes);
-  }, [networkNodes]);
+      // 3. Authenticated Data
+      if (getAuthToken()) {
+        const meRes = await getMe().catch(() => null);
+        if (meRes && meRes.user) {
+          setCurrentUser(meRes.user);
+          setIsAuthenticated(true);
+          setIsAdmin(meRes.user.is_admin === 1);
 
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.JOBS, jobs);
-  }, [jobs]);
+          // Applications
+          const appRes = await getMyApplications().catch(() => ({ applications: [] }));
+          setApplications(appRes.applications || []);
 
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.APPLICATIONS, applications);
-  }, [applications]);
+          // Network
+          const netRes = await getNetwork().catch(() => ({ nodes: [] }));
+          setNetworkNodes(netRes.nodes || []);
 
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.MESSAGES, conversations);
-  }, [conversations]);
-
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.NOTIFICATIONS, notifications);
-  }, [notifications]);
-
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.SAVED_POSTS, savedPostIds);
-  }, [savedPostIds]);
-
-  useEffect(() => {
-    setStoredItem(STORAGE_KEYS.SAVED_JOBS, savedJobIds);
-  }, [savedJobIds]);
-
-  // Handlers for Authentication (Google, GitHub, X, Email)
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('workmark_auth_token', 'wm_' + Date.now());
-    setStoredItem(STORAGE_KEYS.USER, user);
+          // Notifications
+          const notifRes = await getNotifications().catch(() => ({ notifications: [] }));
+          setNotifications(notifRes.notifications || []);
+        } else {
+          setAuthToken(null);
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load real data from backend:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLogout = () => {
+  useEffect(() => {
+    refreshAppData();
+  }, []);
+
+  // Authentication Handlers
+  const handleLoginSuccess = async (user) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    setIsAdmin(user.is_admin === 1);
+    await refreshAppData();
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
     setIsAuthenticated(false);
-    localStorage.removeItem('workmark_auth_token');
+    setCurrentUser(null);
+    setIsAdmin(false);
+    setActiveTab('feed');
   };
 
   const handleOpenAuth = (mode = 'signin') => {
@@ -126,175 +148,130 @@ export default function App() {
     setIsAuthModalOpen(true);
   };
 
-  // Handlers for User Profile Updates
-  const handleUpdateUser = (updatedUser) => {
-    setCurrentUser(updatedUser);
-  };
-
-  // Handlers for Posts
-  const handleNewPost = (newPost) => {
-    setPosts([newPost, ...posts]);
-  };
-
-  const handlePostsChange = (updatedPosts) => {
-    setPosts(updatedPosts);
-  };
-
-  const handleToggleSavePost = (postId) => {
-    if (savedPostIds.includes(postId)) {
-      setSavedPostIds(savedPostIds.filter((id) => id !== postId));
-    } else {
-      setSavedPostIds([...savedPostIds, postId]);
+  // User Profile Actions
+  const handleUpdateUser = async (updatedData) => {
+    try {
+      const res = await apiUpdateProfile(updatedData);
+      if (res.user) {
+        setCurrentUser((prev) => ({ ...prev, ...res.user }));
+      }
+    } catch (err) {
+      console.error('Update profile error:', err);
     }
   };
 
-  // Handlers for Jobs
-  const handleNewJob = (newJob) => {
-    setJobs([newJob, ...jobs]);
-  };
-
-  const handleApplyJob = (job, form) => {
-    const newApp = {
-      jobId: job.id,
-      job: job,
-      form: form,
-      date: 'Just now',
-      status: 'Under Review'
-    };
-    setApplications([newApp, ...applications]);
-
-    // Send automated notification
-    const jobNotif = {
-      id: `notif_${Date.now()}`,
-      type: 'job',
-      actor: {
-        name: job.company,
-        avatar: job.logo,
-        role: 'Verified Employer'
-      },
-      title: `Application confirmed for ${job.title}`,
-      detail: 'Your Workmark cryptographic dossier was delivered to hiring leads.',
-      timestamp: 'Just now',
-      read: false,
-      linkTab: 'jobs'
-    };
-    setNotifications([jobNotif, ...notifications]);
-  };
-
-  const handleToggleSaveJob = (jobId) => {
-    if (savedJobIds.includes(jobId)) {
-      setSavedJobIds(savedJobIds.filter((id) => id !== jobId));
-    } else {
-      setSavedJobIds([...savedJobIds, jobId]);
+  const handleAddArtifact = async (artData) => {
+    try {
+      await apiAddArtifact(artData);
+      const me = await getMe();
+      if (me.user) setCurrentUser(me.user);
+    } catch (err) {
+      console.error('Add artifact error:', err);
     }
   };
 
-  // Handlers for Network & Connections
-  const handleConnect = (peerId, note) => {
-    setNetworkNodes(
-      networkNodes.map((node) => {
-        if (node.id === peerId) {
-          return { ...node, status: 'connected' };
-        }
-        return node;
-      })
-    );
-    setCurrentUser({
-      ...currentUser,
-      connectionsCount: (currentUser.connectionsCount || 1420) + 1
-    });
-  };
-
-  const handleAcceptInvite = (invite) => {
-    // Add to network nodes as connected
-    const newNode = {
-      id: invite.id,
-      name: invite.name,
-      role: invite.role,
-      company: 'BrainLink Labs',
-      score: invite.score,
-      connections: 2400,
-      mutual: invite.mutual,
-      avatar: invite.avatar,
-      category: 'AI & Research',
-      status: 'connected'
-    };
-    setNetworkNodes([newNode, ...networkNodes]);
-    setCurrentUser({
-      ...currentUser,
-      connectionsCount: (currentUser.connectionsCount || 1420) + 1
-    });
-
-    // Notify
-    const connNotif = {
-      id: `notif_${Date.now()}`,
-      type: 'connection',
-      actor: {
-        name: invite.name,
-        avatar: invite.avatar,
-        role: invite.role
-      },
-      title: 'is now in your constellation',
-      detail: 'You and ' + invite.name + ' are now 1st-degree verified connections.',
-      timestamp: 'Just now',
-      read: false,
-      linkTab: 'network'
-    };
-    setNotifications([connNotif, ...notifications]);
-  };
-
-  const handleIgnoreInvite = (inviteId) => {
-    // Handled in NetworkView local state
-  };
-
-  // Handlers for Messaging
-  const handleSendMessage = (convId, text, sender = 'me') => {
-    const newMsg = {
-      id: `m_${Date.now()}`,
-      sender: sender,
-      text: text,
-      time: 'Just now'
-    };
-
-    setConversations(
-      conversations.map((c) => {
-        if (c.id === convId) {
-          return {
-            ...c,
-            lastMessage: text,
-            timestamp: 'Just now',
-            messages: [...c.messages, newMsg]
-          };
-        }
-        return c;
-      })
-    );
-  };
-
-  const handleNewConversation = (newConv) => {
-    setConversations([newConv, ...conversations]);
-  };
-
-  // Handlers for Notifications
-  const handleMarkAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-  };
-
-  const handleDeleteNotification = (notifId) => {
-    setNotifications(notifications.filter((n) => n.id !== notifId));
-  };
-
-  const handleNotificationClick = (notif) => {
-    // Mark as read
-    setNotifications(
-      notifications.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
-    );
-    if (notif.linkTab) {
-      setActiveTab(notif.linkTab);
+  const handleDeleteArtifact = async (artId) => {
+    try {
+      await apiDeleteArtifact(artId);
+      const me = await getMe();
+      if (me.user) setCurrentUser(me.user);
+    } catch (err) {
+      console.error('Delete artifact error:', err);
     }
   };
 
-  // Admin Auth Handlers
+  const handleAddSkill = async (name, score) => {
+    try {
+      await apiAddSkill(name, score);
+      const me = await getMe();
+      if (me.user) setCurrentUser(me.user);
+    } catch (err) {
+      console.error('Add skill error:', err);
+    }
+  };
+
+  const handleEndorseSkill = async (skillId) => {
+    try {
+      await apiEndorseSkill(skillId);
+      const me = await getMe();
+      if (me.user) setCurrentUser(me.user);
+    } catch (err) {
+      console.error('Endorse skill error:', err);
+    }
+  };
+
+  // Post Actions
+  const handleNewPost = async (postData) => {
+    if (!isAuthenticated) return handleOpenAuth('signup');
+    try {
+      await apiCreatePost(postData);
+      const res = await getPosts();
+      setPosts(res.posts || []);
+    } catch (err) {
+      console.error('Create post error:', err);
+    }
+  };
+
+  const handlePostsChange = (newPosts) => {
+    setPosts(newPosts);
+  };
+
+  // Job Actions
+  const handleNewJob = async (jobData) => {
+    if (!isAuthenticated) return handleOpenAuth('signup');
+    try {
+      await apiCreateJob(jobData);
+      const res = await getJobs();
+      setJobs(res.jobs || []);
+    } catch (err) {
+      console.error('Create job error:', err);
+    }
+  };
+
+  const handleApplyJob = async (job, form) => {
+    if (!isAuthenticated) return handleOpenAuth('signup');
+    try {
+      await apiApplyJob(job.id, form);
+      const res = await getMyApplications();
+      setApplications(res.applications || []);
+    } catch (err) {
+      console.error('Apply job error:', err);
+    }
+  };
+
+  // Network Actions
+  const handleConnect = async (peerId, note) => {
+    if (!isAuthenticated) return handleOpenAuth('signup');
+    try {
+      await apiConnectUser(peerId, note);
+      const res = await getNetwork();
+      setNetworkNodes(res.nodes || []);
+    } catch (err) {
+      console.error('Connect error:', err);
+    }
+  };
+
+  // Message Actions
+  const handleSendMessage = async (convId, text) => {
+    if (!isAuthenticated) return handleOpenAuth('signup');
+    try {
+      await apiSendMessage(convId, text);
+    } catch (err) {
+      console.error('Send message error:', err);
+    }
+  };
+
+  // Notification Actions
+  const handleMarkAllRead = async () => {
+    try {
+      await markNotificationsRead();
+      setNotifications(notifications.map((n) => ({ ...n, is_read: 1 })));
+    } catch (err) {
+      console.error('Mark read error:', err);
+    }
+  };
+
+  // Admin Actions
   const handleAdminLoginSuccess = () => {
     setIsAdmin(true);
     setActiveTab('admin');
@@ -305,11 +282,8 @@ export default function App() {
     setActiveTab('feed');
   };
 
-  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
-  const unreadMessagesCount = conversations.reduce((acc, c) => acc + (c.unread || 0), 0);
-
-  // If not logged in, render the LinkedIn-style Landing Gateway
-  if (!isAuthenticated) {
+  // If not logged in and visitor opens site, show real Landing & Auth screen
+  if (!isAuthenticated && !currentUser) {
     return (
       <>
         <LandingView
@@ -327,9 +301,26 @@ export default function App() {
     );
   }
 
+  // Authenticated Dashboard
+  const safeUser = currentUser || {
+    name: 'Verified User',
+    handle: '@verified_user',
+    role: 'Software Architect',
+    company: 'Enterprise',
+    location: 'San Francisco, CA',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
+    workmarkScore: 950,
+    skills: [],
+    artifacts: [],
+    experience: []
+  };
+
+  const unreadNotificationsCount = notifications.filter((n) => !n.is_read).length;
+
   return (
     <div className="min-h-screen flex flex-col relative text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 font-sans transition-colors">
-      {/* 3D Animated Background Mesh */}
+      {/* Ambient WebGL Ribbon */}
       <ThreeBackground isDark={isDark} />
 
       {/* Persistent Global Header */}
@@ -338,10 +329,10 @@ export default function App() {
         setActiveTab={setActiveTab}
         isAdmin={isAdmin}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
-        currentUser={currentUser}
+        currentUser={safeUser}
         unreadNotificationsCount={unreadNotificationsCount}
-        unreadMessagesCount={unreadMessagesCount}
-        pendingInvitesCount={2}
+        unreadMessagesCount={0}
+        pendingInvitesCount={0}
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
         isAuthenticated={isAuthenticated}
@@ -357,9 +348,9 @@ export default function App() {
             posts={posts}
             onNewPost={handleNewPost}
             onPostsChange={handlePostsChange}
-            onToggleSavePost={handleToggleSavePost}
+            onToggleSavePost={(id) => setSavedPostIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id])}
             savedPostIds={savedPostIds}
-            currentUser={currentUser}
+            currentUser={safeUser}
           />
         )}
 
@@ -368,9 +359,9 @@ export default function App() {
           <NetworkView
             nodes={networkNodes}
             onConnect={handleConnect}
-            onAcceptInvite={handleAcceptInvite}
-            onIgnoreInvite={handleIgnoreInvite}
-            currentUser={currentUser}
+            onAcceptInvite={() => {}}
+            onIgnoreInvite={() => {}}
+            currentUser={safeUser}
           />
         )}
 
@@ -381,9 +372,9 @@ export default function App() {
             onNewJob={handleNewJob}
             applications={applications}
             onApplyJob={handleApplyJob}
-            onToggleSaveJob={handleToggleSaveJob}
+            onToggleSaveJob={(id) => setSavedJobIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id])}
             savedJobIds={savedJobIds}
-            currentUser={currentUser}
+            currentUser={safeUser}
           />
         )}
 
@@ -392,8 +383,8 @@ export default function App() {
           <MessagingView
             conversations={conversations}
             onSendMessage={handleSendMessage}
-            onNewConversation={handleNewConversation}
-            currentUser={currentUser}
+            onNewConversation={() => {}}
+            currentUser={safeUser}
             connections={networkNodes.filter((n) => n.status === 'connected')}
           />
         )}
@@ -403,16 +394,20 @@ export default function App() {
           <NotificationsView
             notifications={notifications}
             onMarkAllRead={handleMarkAllRead}
-            onDeleteNotification={handleDeleteNotification}
-            onNotificationClick={handleNotificationClick}
+            onDeleteNotification={() => {}}
+            onNotificationClick={() => {}}
           />
         )}
 
         {/* 6. Profile / Dossier */}
         {activeTab === 'profile' && (
           <ProfileView
-            user={currentUser}
+            user={safeUser}
             onUpdateUser={handleUpdateUser}
+            onAddArtifact={handleAddArtifact}
+            onDeleteArtifact={handleDeleteArtifact}
+            onAddSkill={handleAddSkill}
+            onEndorseSkill={handleEndorseSkill}
           />
         )}
 
@@ -425,13 +420,15 @@ export default function App() {
       </main>
 
       {/* Floating LinkedIn-Style Mini Chat Dock */}
-      <FloatingChatDock
-        conversations={conversations}
-        onSendMessage={handleSendMessage}
-        currentUser={currentUser}
-      />
+      {isAuthenticated && (
+        <FloatingChatDock
+          conversations={conversations}
+          onSendMessage={handleSendMessage}
+          currentUser={safeUser}
+        />
+      )}
 
-      {/* Auth Modal (Google, GitHub, Twitter/X, Email) */}
+      {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}

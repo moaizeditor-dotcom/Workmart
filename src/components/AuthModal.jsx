@@ -5,12 +5,11 @@ import {
   Lock,
   User,
   Briefcase,
-  ShieldCheck,
+  AlertCircle,
   CheckCircle2,
-  ArrowRight,
-  Sparkles,
-  AlertCircle
+  ArrowRight
 } from 'lucide-react';
+import { registerUser, loginUser, socialLogin, setAuthToken } from '../api';
 
 export default function AuthModal({
   isOpen,
@@ -32,82 +31,35 @@ export default function AuthModal({
   if (!isOpen) return null;
 
   // Handle Social Providers (Google, GitHub, X)
-  const handleSocialAuth = (provider) => {
+  const handleSocialAuth = async (provider) => {
     setError('');
     setLoadingProvider(provider);
 
-    setTimeout(() => {
-      let socialUser;
+    try {
+      const res = await socialLogin({
+        provider,
+        name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Professional`,
+        email: `${provider}_user_${Date.now()}@workmark.io`
+      });
 
-      if (provider === 'google') {
-        socialUser = {
-          name: 'Alex Vance',
-          handle: '@alexvance_g',
-          role: 'Principal Spatial Systems Architect',
-          company: 'Google Cloud & Spatial',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          about: 'Staff Architect focused on distributed GPU rendering, WebGPU runtimes, and low-latency spatial protocols. Authenticated via Google Identity Services.',
-          workmarkScore: 985,
-          verified: true,
-          authProvider: 'google',
-          connectionsCount: 1420,
-          artifactsCount: 6,
-          skills: ['WebGPU', 'Rust', 'Distributed Systems', 'Three.js', 'Kubernetes'],
-          artifacts: []
-        };
-      } else if (provider === 'github') {
-        socialUser = {
-          name: 'Alex Vance',
-          handle: '@alexvance_dev',
-          role: 'Staff Core Infrastructure Engineer',
-          company: 'GitHub / Open Source Fellow',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          about: 'Core systems programmer, Rust contributor, and distributed systems architect. Verified via GitHub Developer OAuth.',
-          workmarkScore: 992,
-          verified: true,
-          authProvider: 'github',
-          connectionsCount: 1850,
-          artifactsCount: 8,
-          skills: ['Rust', 'Systems Architecture', 'Distributed Protocols', 'C++', 'WebAssembly'],
-          artifacts: []
-        };
-      } else if (provider === 'twitter') {
-        socialUser = {
-          name: 'Alex Vance',
-          handle: '@alexvance_x',
-          role: 'Spatial Systems & AI Systems Lead',
-          company: 'Apex Spatial Labs',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          about: 'Building next-generation verifiable spatial identity networks. Authenticated via X Developer API.',
-          workmarkScore: 975,
-          verified: true,
-          authProvider: 'twitter',
-          connectionsCount: 1210,
-          artifactsCount: 5,
-          skills: ['Spatial Computing', 'AI Systems', 'WebGL', 'TypeScript'],
-          artifacts: []
-        };
-      }
-
-      setLoadingProvider(null);
+      setAuthToken(res.token);
       setSuccessMsg(`Successfully authenticated via ${provider.toUpperCase()}!`);
       setTimeout(() => {
-        onLoginSuccess(socialUser);
+        onLoginSuccess(res.user);
         onClose();
-      }, 600);
-    }, 700);
+      }, 500);
+    } catch (err) {
+      setError(err.message || 'Social authentication failed.');
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   // Handle Email / Password Sign In & Sign Up
-  const handleSubmitEmail = (e) => {
+  const handleSubmitEmail = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
 
     if (!email.trim() || !password.trim()) {
       setError('Please provide all required fields.');
@@ -121,84 +73,45 @@ export default function AuthModal({
 
     setLoadingProvider('email');
 
-    setTimeout(() => {
-      setLoadingProvider(null);
-
-      // Load registered users from storage
-      const registeredUsers = JSON.parse(localStorage.getItem('workmark_registered_users') || '[]');
-
+    try {
       if (mode === 'signup') {
         if (!fullName.trim()) {
           setError('Please provide your full legal or professional name.');
+          setLoadingProvider(null);
           return;
         }
 
-        const newUser = {
+        const res = await registerUser({
           name: fullName.trim(),
-          handle: `@${fullName.trim().toLowerCase().replace(/\s+/g, '_')}`,
-          role: headline.trim() || 'Software Engineer',
-          company: 'Independent Enterprise',
-          location: 'San Francisco, CA',
-          avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`,
-          coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          about: 'Professional profile registered on Workmark Verified Network.',
           email: email.trim(),
-          password: password,
-          workmarkScore: 950,
-          verified: true,
-          authProvider: 'email',
-          connectionsCount: 1,
-          artifactsCount: 0,
-          skills: ['Software Engineering', 'System Architecture', 'Problem Solving'],
-          artifacts: []
-        };
+          password,
+          role: headline.trim() || 'Software Engineer'
+        });
 
-        // Save into registered users
-        registeredUsers.push(newUser);
-        localStorage.setItem('workmark_registered_users', JSON.stringify(registeredUsers));
-
+        setAuthToken(res.token);
         setSuccessMsg('Account created successfully! Logging you in...');
         setTimeout(() => {
-          onLoginSuccess(newUser);
+          onLoginSuccess(res.user);
           onClose();
-        }, 700);
+        }, 500);
       } else {
-        // Sign In mode
-        const existing = registeredUsers.find(
-          (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
-        );
+        const res = await loginUser({
+          email: email.trim(),
+          password
+        });
 
-        if (existing && existing.password === password) {
-          setSuccessMsg('Welcome back! Logging you in...');
-          setTimeout(() => {
-            onLoginSuccess(existing);
-            onClose();
-          }, 600);
-        } else {
-          // If no specific match, authenticate smoothly with typed credentials
-          const signedInUser = {
-            name: fullName || 'Alex Vance',
-            handle: `@${(fullName || 'alexvance').toLowerCase().replace(/\s+/g, '_')}`,
-            role: headline || 'Staff Systems Engineer',
-            company: 'Nova Dynamics',
-            location: 'San Francisco, CA',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-            email: email.trim(),
-            workmarkScore: 980,
-            verified: true,
-            authProvider: 'email',
-            connectionsCount: 1420,
-            artifactsCount: 4,
-            skills: ['Distributed Systems', 'Rust', 'WebGL']
-          };
-          setSuccessMsg('Authentication successful! Welcome to Workmark.');
-          setTimeout(() => {
-            onLoginSuccess(signedInUser);
-            onClose();
-          }, 600);
-        }
+        setAuthToken(res.token);
+        setSuccessMsg('Welcome back! Logging you in...');
+        setTimeout(() => {
+          onLoginSuccess(res.user);
+          onClose();
+        }, 500);
       }
-    }, 700);
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   return (

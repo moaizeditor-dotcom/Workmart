@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Briefcase,
-  Users,
-  Compass,
-  CheckCircle2,
-  Lock,
-  Mail,
-  User,
-  ExternalLink
+  Users
 } from 'lucide-react';
+import { registerUser, loginUser, socialLogin, setAuthToken } from '../api';
 
 export default function LandingView({
   onLoginSuccess,
@@ -26,77 +20,32 @@ export default function LandingView({
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [error, setError] = useState('');
 
-  const handleSocialLogin = (provider) => {
+  const handleSocialLogin = async (provider) => {
     setLoadingProvider(provider);
     setError('');
 
-    setTimeout(() => {
-      let userObj;
-      if (provider === 'google') {
-        userObj = {
-          name: 'Google User',
-          handle: '@google_verified',
-          role: 'Verified Professional',
-          company: 'Technology & Enterprise',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          bio: 'Verified professional profile connected via Google Identity.',
-          workmarkScore: 980,
-          verified: true,
-          authProvider: 'google',
-          connectionsCount: 0,
-          artifactsCount: 0,
-          skills: ['Engineering', 'System Architecture', 'Leadership'],
-          artifacts: []
-        };
-      } else if (provider === 'github') {
-        userObj = {
-          name: 'GitHub Developer',
-          handle: '@github_dev',
-          role: 'Software Architect & Open Source Contributor',
-          company: 'GitHub Verified',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-          banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          bio: 'Developer and infrastructure engineer verified via GitHub Developer API.',
-          workmarkScore: 990,
-          verified: true,
-          authProvider: 'github',
-          connectionsCount: 0,
-          artifactsCount: 0,
-          skills: ['Rust', 'Distributed Systems', 'TypeScript', 'Docker'],
-          artifacts: []
-        };
-      } else if (provider === 'twitter') {
-        userObj = {
-          name: 'X Creator',
-          handle: '@x_verified',
-          role: 'Tech Lead & Founder',
-          company: 'X Verified Network',
-          location: 'San Francisco, CA',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-          bio: 'Verified profile authenticated via X (Twitter).',
-          workmarkScore: 975,
-          verified: true,
-          authProvider: 'twitter',
-          connectionsCount: 0,
-          artifactsCount: 0,
-          skills: ['Product Strategy', 'Engineering', 'AI Systems'],
-          artifacts: []
-        };
-      }
+    try {
+      const res = await socialLogin({
+        provider,
+        name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Professional`,
+        email: `${provider}_user_${Date.now()}@workmark.io`
+      });
 
-      setLoadingProvider(null);
+      setAuthToken(res.token);
       if (onLoginSuccess) {
-        onLoginSuccess(userObj);
+        onLoginSuccess(res.user);
       }
-    }, 600);
+    } catch (err) {
+      setError(err.message || 'Social authentication failed.');
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
     if (!email.trim() || !password.trim()) {
       setError('Please provide email and password.');
       return;
@@ -107,31 +56,34 @@ export default function LandingView({
     }
 
     setLoadingProvider('email');
-    setTimeout(() => {
-      setLoadingProvider(null);
-      const user = {
-        name: fullName.trim() || email.split('@')[0],
-        handle: '@' + (fullName.trim() || email.split('@')[0]).toLowerCase().replace(/ /g, '_'),
-        role: headline.trim() || 'Software Engineer',
-        company: 'Independent Enterprise',
-        location: 'San Francisco, CA',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-        banner: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80',
-        bio: 'Member of Workmark verified talent network.',
-        email: email.trim(),
-        workmarkScore: 950,
-        verified: true,
-        authProvider: 'email',
-        connectionsCount: 0,
-        artifactsCount: 0,
-        skills: ['Software Engineering', 'System Architecture'],
-        artifacts: []
-      };
 
-      if (onLoginSuccess) {
-        onLoginSuccess(user);
+    try {
+      if (mode === 'signup') {
+        const res = await registerUser({
+          name: fullName.trim() || email.split('@')[0],
+          email: email.trim(),
+          password,
+          role: headline.trim() || 'Software Engineer'
+        });
+        setAuthToken(res.token);
+        if (onLoginSuccess) {
+          onLoginSuccess(res.user);
+        }
+      } else {
+        const res = await loginUser({
+          email: email.trim(),
+          password
+        });
+        setAuthToken(res.token);
+        if (onLoginSuccess) {
+          onLoginSuccess(res.user);
+        }
       }
-    }, 600);
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   return (
