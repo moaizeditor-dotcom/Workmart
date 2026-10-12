@@ -3,14 +3,17 @@ import jwt from 'jsonwebtoken';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { db } from './db.js';
+import { db, IS_SERVERLESS } from './db.js';
 import './config.js';
 
 // Secure secret management
-const IS_SERVERLESS = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const SECRET_DIR = process.env.DATA_DIR || (IS_SERVERLESS ? '/tmp' : path.resolve(process.cwd(), 'data'));
 const SECRET_FILE = path.join(SECRET_DIR, '.jwt_secret');
 let JWT_SECRET = process.env.JWT_SECRET;
+
+if (IS_SERVERLESS && (!JWT_SECRET || JWT_SECRET.length < 32)) {
+  throw new Error('JWT_SECRET must contain at least 32 characters in serverless production.');
+}
 
 if (!JWT_SECRET) {
   if (fs.existsSync(SECRET_FILE)) {
@@ -28,9 +31,6 @@ if (!JWT_SECRET) {
     }
   }
 
-  if (IS_SERVERLESS) {
-    console.warn('[Workmark Auth] JWT_SECRET is not configured; using an instance-local key. Configure JWT_SECRET in Netlify for stable sessions.');
-  }
 }
 
 export const hashPassword = async (plaintext) => {
@@ -43,16 +43,40 @@ export const comparePassword = async (plaintext, hash) => {
 };
 
 export const generateToken = (user) => {
+  const sessionId = randomBytes(32).toString('base64url');
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       handle: user.handle,
-      is_admin: user.is_admin || 0
+      is_admin: user.is_admin || 0,
+      jti: sessionId
     },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
+};
+
+export const createSession = async (user) => {
+  const sessionId = randomBytes(32).toString('base64url');
+  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  const token = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      handle: user.handle,
+      is_admin: user.is_admin || 0,
+      jti: sessionId
+    },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+  await db.prepare(
+    'INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
+  ).run(sessionId, user.id, expiresAt, Date.now());
+  await db.prepare('DELETE FROM sessions WHERE expires_at <= ? OR revoked_at <= ?')
+    .run(Date.now(), Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return token;
 };
 
 export const verifyToken = (token) => {
@@ -87,7 +111,7 @@ export const verifyOAuthState = (state, provider, nonce) => {
   }
 };
 
-export const requireAuth = (req, res, next) => {
+export const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required. Please sign in.' });
@@ -95,29 +119,40 @@ export const requireAuth = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   const payload = verifyToken(token);
-  if (!payload) {
+  if (!payload || typeof payload.jti !== 'string') {
     return res.status(401).json({ error: 'Session expired or invalid token. Please log in again.' });
   }
 
+  const session = await db.prepare(
+    'SELECT id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?'
+  ).get(payload.jti, payload.id, Date.now());
+  if (!session) {
+    return res.status(401).json({ error: 'Session expired or signed out. Please log in again.' });
+  }
+
   const stmt = db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?');
-  const user = stmt.get(payload.id);
+  const user = await stmt.get(payload.id);
 
   if (!user) {
     return res.status(401).json({ error: 'User account not found.' });
   }
 
   req.user = user;
+  req.authSessionId = payload.jti;
   next();
 };
 
-export const optionalAuth = (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     const payload = verifyToken(token);
-    if (payload) {
+    if (payload && typeof payload.jti === 'string') {
+      const session = await db.prepare(
+        'SELECT id FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?'
+      ).get(payload.jti, payload.id, Date.now());
       const stmt = db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?');
-      const user = stmt.get(payload.id);
+      const user = session ? await stmt.get(payload.id) : null;
       if (user) {
         req.user = user;
       }

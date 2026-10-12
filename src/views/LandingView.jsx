@@ -4,7 +4,13 @@ import {
   ShieldCheck,
   Briefcase,
   Users,
-  KeyRound
+  KeyRound,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Layers,
+  Sparkles,
+  CheckCircle2
 } from 'lucide-react';
 import { registerUser, loginUser, getOAuthConfig, setAuthToken } from '../api';
 
@@ -20,6 +26,7 @@ export default function LandingView({
   const [password, setPassword] = useState('');
   const [loadingProvider, setLoadingProvider] = useState(null);
   const [error, setError] = useState('');
+  const [openFaq, setOpenFaq] = useState(0);
 
   const handleSocialLogin = async (provider) => {
     setLoadingProvider(provider);
@@ -108,7 +115,7 @@ export default function LandingView({
           </div>
           <div>
             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Work<span className="text-[#0A66C2]">mark</span>
+              Work<span className="text-[#0A66C2]">Mart</span>
             </span>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium -mt-1 hidden sm:block">
               Verified Talent Network
@@ -128,7 +135,7 @@ export default function LandingView({
               setMode('signup');
               if (onOpenAuth) onOpenAuth('signup');
             }}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#0A66C2] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#0A66C2] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             Join now
           </button>
@@ -137,7 +144,7 @@ export default function LandingView({
               setMode('signin');
               if (onOpenAuth) onOpenAuth('signin');
             }}
-            className="px-5 py-2 rounded-xl border border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all shadow-sm"
+            className="px-3 sm:px-5 py-2 rounded-xl border border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all shadow-sm"
           >
             Sign in
           </button>
@@ -272,14 +279,14 @@ export default function LandingView({
                 disabled={!!loadingProvider}
                 className="w-full py-3 mt-1 rounded-2xl bg-[#0A66C2] hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
               >
-                <span>{mode === 'signup' ? 'Agree & Join Workmark' : 'Sign In'}</span>
+                <span>{mode === 'signup' ? 'Agree & Join WorkMart' : 'Sign In'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <div className="pt-2 text-center text-[11px] text-slate-500">
                 {mode === 'signup' ? (
                   <span>
-                    Already on Workmark?{' '}
+                    Already on WorkMart?{' '}
                     <button
                       type="button"
                       onClick={() => setMode('signin')}
@@ -290,7 +297,7 @@ export default function LandingView({
                   </span>
                 ) : (
                   <span>
-                    New to Workmark?{' '}
+                    New to WorkMart?{' '}
                     <button
                       type="button"
                       onClick={() => setMode('signup')}
@@ -318,7 +325,7 @@ export default function LandingView({
               </div>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Unlike traditional resumes, Workmark anchors measurable benchmarks, system distribution breakdowns, and technical deliverables.
+              Unlike traditional resumes, WorkMart anchors measurable benchmarks, system distribution breakdowns, and technical deliverables.
             </p>
           </div>
 
@@ -365,17 +372,146 @@ export default function LandingView({
         </div>
       </main>
 
+      {/* Core Engineering Disciplines (Keyword-Rich SEO Section) */}
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200 dark:border-slate-800">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-[#0A66C2] text-xs font-bold mb-3">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>High-Demand Engineering Specializations</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Curated for verified technical excellence
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2">
+            WorkMart indexes verifiable skills and systems capabilities across the world&apos;s leading tech stacks.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              title: 'Distributed Systems',
+              desc: 'High-throughput data engines, Raft/Paxos consensus, low-latency stream architectures.',
+              tag: 'C++, Rust, Go, Kafka',
+              icon: Cpu
+            },
+            {
+              title: 'Zero-Trust Infrastructure',
+              desc: 'Multi-region Kubernetes clusters, automated service mesh policies, and cloud planes.',
+              tag: 'Terraform, AWS, K8s, eBPF',
+              icon: ShieldCheck
+            },
+            {
+              title: 'AI & Inference Engineering',
+              desc: 'Distributed LLM orchestration, model distillation, and vectorized semantic pipelines.',
+              tag: 'PyTorch, CUDA, Vector DBs',
+              icon: Layers
+            },
+            {
+              title: 'Full-Stack Architecture',
+              desc: 'High-performance reactive interfaces, resilient caching, and real-time collaborative protocols.',
+              tag: 'TypeScript, React, Node.js',
+              icon: Briefcase
+            }
+          ].map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={idx}
+                className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-[#0A66C2] mb-4">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">{item.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">{item.desc}</p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                  <span className="font-mono text-[#0A66C2] font-semibold">{item.tag}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Interactive FAQ Accordion (Matches Schema.org FAQPage for Google Rich Snippets) */}
+      <section className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-200 dark:border-slate-800">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2">
+            Everything you need to know about the WorkMart verified talent network and career marketplace.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {[
+            {
+              q: 'What is WorkMart and how does it verify software engineers?',
+              a: 'WorkMart is a verified professional tech talent network where software engineers, cloud architects, and engineering leaders showcase cryptographic and peer-reviewed proof-of-work dossiers, live distributed systems benchmarks, and verified repo contributions instead of conventional unverified resumes.'
+            },
+            {
+              q: 'How do companies find and hire elite engineers on WorkMart?',
+              a: 'Engineering leaders and technical recruiters browse verified talent using our interactive 3D Spatial Talent Constellation, filter candidates by proven distributed systems and architecture proficiencies, and connect directly with talent without intermediary recruiter spam.'
+            },
+            {
+              q: 'Is WorkMart free for software engineers and candidates?',
+              a: 'Yes, WorkMart is 100% free for software engineers, designers, architects, and technical leaders to build verified proof-of-work profiles, connect across the 3D talent graph, and apply for high-compensation roles.'
+            },
+            {
+              q: 'What makes the WorkMart 3D Spatial Talent Constellation unique?',
+              a: 'The WorkMart 3D Spatial Talent Constellation visualizes 1st, 2nd, and 3rd-degree technical relationships and skills graph in an interactive 3D WebGL space, allowing developers and hiring teams to explore collaborative clusters, domain specializations, and validated endorsements intuitively.'
+            },
+            {
+              q: 'What types of engineering roles are featured on WorkMart?',
+              a: 'WorkMart curates high-impact engineering opportunities across Staff Cloud & Infrastructure Architecture, Principal Distributed Systems, Machine Learning & AI Engineering, Full-Stack Architecture, and Zero-Trust Cybersecurity.'
+            }
+          ].map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div
+                key={idx}
+                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden transition-all shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? null : idx)}
+                  className="w-full text-left p-5 flex items-center justify-between gap-4 font-bold text-sm text-slate-900 dark:text-white hover:text-[#0A66C2] transition-colors"
+                >
+                  <span>{faq.q}</span>
+                  {isOpen ? (
+                    <ChevronUp className="w-4 h-4 text-[#0A66C2] flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  )}
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 px-4 bg-white/70 dark:bg-slate-900/70 text-xs text-slate-500 font-sans">
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-8 px-4 bg-white/70 dark:bg-slate-900/70 text-xs text-slate-500 font-sans">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="font-bold text-slate-800 dark:text-slate-200">Workmark</span>
-            <span>© 2026 Workmark Corporation. Verified Professional Network.</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200">WorkMart</span>
+            <span>© 2026 WorkMart Inc. The Verified Professional Talent Network. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="hover:text-[#0A66C2] cursor-pointer">Privacy Policy</span>
             <span className="hover:text-[#0A66C2] cursor-pointer">User Agreement</span>
             <span className="hover:text-[#0A66C2] cursor-pointer">Cookie Policy</span>
+            <span className="hover:text-[#0A66C2] cursor-pointer">Security &amp; Verification</span>
           </div>
         </div>
       </footer>

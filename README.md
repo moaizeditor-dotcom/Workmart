@@ -52,19 +52,45 @@ npm run build
 
 ## Authentication and deployment configuration
 
-Email authentication uses the Express API and SQLite database. Set a strong,
-unique `JWT_SECRET` in the deployment environment. To provision an administrator,
+Email authentication uses the Express API. Local development uses SQLite;
+Netlify production requires a managed PostgreSQL database through `DATABASE_URL`
+and fails closed if it is not configured. The first function startup runs
+versioned, transactional schema migrations and uses a small connection pool.
+Set a strong, unique `JWT_SECRET` (at least 32 characters) and the stable
+`APP_URL=https://workmak.netlify.app` in Netlify's server-side environment
+variables. Do not use `VITE_` prefixes for secrets. To provision an administrator,
 set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`; the application does not ship with
 public default administrator credentials, and new signups are not administrators.
 
 Google, GitHub, and Twitter/X sign-in require the corresponding provider client
-credentials and a callback URL registered with that provider. The callback URL
-is `https://<your-domain>/api/auth/callback/<provider>`. Twitter/X must return
-a verified email address for account creation; a synthetic email is not used.
+credentials and a callback URL registered with that provider:
 
-**Netlify limitation:** this project currently uses SQLite. Netlify function
-storage under `/tmp` is temporary and local to a function instance, so it is not
-a persistent shared production database. A persistent database and corresponding
-backend integration are required before production signup, login, and session
-verification can be considered reliable. `DATABASE_PATH` does not make Netlify
-function storage persistent.
+- Google: `https://workmak.netlify.app/api/auth/callback/google`
+- GitHub: `https://workmak.netlify.app/api/auth/callback/github`
+- Twitter/X: `https://workmak.netlify.app/api/auth/callback/twitter`
+
+OAuth accounts are linked by the provider's stable account ID. Verified email
+addresses are associated when available; Twitter/X can create an account even
+when its API does not provide an email address.
+
+### Production database setup and safe migration
+
+1. Provision a managed PostgreSQL database (for example, Supabase or Neon).
+2. Set `DATABASE_URL` to the provider's SSL-enabled connection URI and
+   `JWT_SECRET` to a newly generated random value in Netlify's server-side
+   environment variables. Set `APP_URL` to `https://workmak.netlify.app`.
+3. Save the variables and trigger a fresh deploy; function runtime settings
+   added after deployment are not present in an existing function bundle.
+   The API runs its schema
+   migrations at startup. The site does not use `/tmp` for production data.
+4. To import an existing local SQLite database into a newly provisioned,
+   empty PostgreSQL database, set `SQLITE_SOURCE_PATH` to the local file path
+   and run `npm run db:import-sqlite`. The importer refuses a non-empty
+   destination and never modifies the source database. Netlify's prior
+   instance-local `/tmp` data is not available for migration from this workspace.
+5. Verify signup, login, logout, and sessions on the live site before treating
+   the cutover as complete.
+
+Production sessions are signed with `JWT_SECRET` and also stored in PostgreSQL;
+logout revokes the server-side session. A password-reset flow is not currently
+implemented.

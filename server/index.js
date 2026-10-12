@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import { db } from './db.js';
+import { db, ready as databaseReady } from './db.js';
 import {
   hashPassword,
   comparePassword,
-  generateToken,
+  createSession,
   createOAuthState,
   verifyOAuthState,
   requireAuth,
@@ -85,11 +85,11 @@ const ensureAdminUser = async () => {
 
     const passwordHash = await hashPassword(adminPassword);
 
-    const existingAdmin = db.prepare('SELECT id, is_admin FROM users WHERE email = ?').get(adminEmail);
+    const existingAdmin = await db.prepare('SELECT id, is_admin FROM users WHERE email = ?').get(adminEmail);
     if (!existingAdmin) {
       const adminId = 'usr_admin_master';
       const now = Date.now();
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (
           id, name, handle, email, password_hash, role, company, location,
           avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
@@ -114,14 +114,14 @@ const ensureAdminUser = async () => {
       );
       console.log(`[WorkMart Admin] Primary administrator account provisioned: ${adminEmail}`);
     } else {
-      db.prepare('UPDATE users SET is_admin = 1, password_hash = ? WHERE email = ?').run(passwordHash, adminEmail);
+      await db.prepare('UPDATE users SET is_admin = 1, password_hash = ? WHERE email = ?').run(passwordHash, adminEmail);
       console.log(`[WorkMart Admin] Administrator account credentials synchronized: ${adminEmail}`);
     }
   } catch (err) {
     console.error('[WorkMart Admin] Failed to provision administrator account:', err);
   }
 };
-ensureAdminUser();
+export const appReady = databaseReady.then(ensureAdminUser);
 
 // ----------------------------------------------------
 // 1. AUTHENTICATION ROUTES
@@ -145,7 +145,7 @@ app.post('/api/auth/register', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if user already exists
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
     if (existing) {
       return res.status(409).json({ error: 'An account with this email address already exists.' });
     }
@@ -156,7 +156,7 @@ app.post('/api/auth/register', async (req, res) => {
     let handle = baseHandle;
     
     // Ensure unique handle
-    const handleCheck = db.prepare('SELECT id FROM users WHERE handle = ?').get(handle);
+    const handleCheck = await db.prepare('SELECT id FROM users WHERE handle = ?').get(handle);
     if (handleCheck) {
       handle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
     }
@@ -164,7 +164,7 @@ app.post('/api/auth/register', async (req, res) => {
     const defaultAvatar = `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`;
     const defaultBanner = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80`;
 
-    const insertUser = db.prepare(`
+    const insertUser = await db.prepare(`
       INSERT INTO users (
         id, name, handle, email, password_hash, role, company, location,
         avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
@@ -172,7 +172,7 @@ app.post('/api/auth/register', async (req, res) => {
     `);
 
     const now = Date.now();
-    insertUser.run(
+    await insertUser.run(
       userId,
       name.trim(),
       handle,
@@ -191,17 +191,27 @@ app.post('/api/auth/register', async (req, res) => {
       now
     );
 
-    const newUser = db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?').get(userId);
-    const token = generateToken(newUser);
+    const newUser = await db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?').get(userId);
+    const token = await createSession(newUser);
 
     return res.status(201).json({ user: newUser, token });
   } catch (err) {
+    if (err.code === '23505' && err.constraint?.includes('email')) {
+      return res.status(409).json({ error: 'An account with this email address already exists.' });
+    }
     if (err.message?.includes('UNIQUE constraint failed: users.email')) {
       return res.status(409).json({ error: 'An account with this email address already exists.' });
     }
     console.error('Registration error:', err);
     return res.status(500).json({ error: 'Server error during registration.' });
   }
+});
+
+app.post('/api/auth/logout', requireAuth, async (req, res) => {
+  await db.prepare(
+    'UPDATE sessions SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL'
+  ).run(Date.now(), req.authSessionId, req.user.id);
+  return res.json({ success: true });
 });
 
 // Login
@@ -214,7 +224,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
@@ -226,7 +236,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const { password_hash, ...safeUser } = user;
-    const token = generateToken(safeUser);
+    const token = await createSession(safeUser);
 
     return res.json({ user: safeUser, token });
   } catch (err) {
@@ -240,7 +250,7 @@ app.post('/api/auth/login', async (req, res) => {
 // ----------------------------------------------------
 
 // OAuth Providers Configuration Status
-app.get('/api/auth/oauth/config', (req, res) => {
+app.get('/api/auth/oauth/config', async (req, res) => {
   const currentAppUrl = getAppUrl(req);
   return res.json({
     google: {
@@ -262,7 +272,7 @@ app.get('/api/auth/oauth/config', (req, res) => {
 });
 
 // OAuth Authorization Initiation (Redirect to Provider)
-app.get('/api/auth/oauth/:provider', (req, res) => {
+app.get('/api/auth/oauth/:provider', async (req, res) => {
   const { provider } = req.params;
   const currentAppUrl = getAppUrl(req);
   const callbackUrl = `${currentAppUrl}/api/auth/callback/${provider}`;
@@ -369,6 +379,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
     let email = null;
     let name = null;
     let avatar = null;
+    let providerUserId = null;
 
     if (provider === 'google') {
       const tokenRes = await fetchProvider('https://oauth2.googleapis.com/token', {
@@ -397,6 +408,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
       email = profile.email;
       name = profile.name || profile.given_name || 'Google User';
       avatar = profile.picture;
+      providerUserId = profile.id;
     } else if (provider === 'github') {
       const tokenRes = await fetchProvider('https://github.com/login/oauth/access_token', {
         method: 'POST',
@@ -428,7 +440,8 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
       }
       name = profile.name || profile.login || 'GitHub Developer';
       avatar = profile.avatar_url;
-      email = profile.email;
+      email = null;
+      providerUserId = String(profile.id);
 
       if (!email) {
         const emailsRes = await fetchProvider('https://api.github.com/user/emails', {
@@ -478,23 +491,36 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
       name = profile.name || profile.username || 'Twitter User';
       email = profile.email || null;
       avatar = profile.profile_image_url;
+      providerUserId = profile.id;
     } else {
       throw new Error(`Unsupported OAuth provider: ${provider}`);
     }
 
-    if (!email) {
-      const providerName = provider === 'twitter' ? 'Twitter/X' : provider;
-      throw new Error(`${providerName} did not provide a verified email address. Use email sign-in or configure a provider that returns verified email.`);
+    if (!providerUserId) {
+      throw new Error(`${provider} did not provide a stable account identifier.`);
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+    const cleanEmail = typeof email === 'string' && email.trim()
+      ? email.trim().toLowerCase()
+      : null;
+    let user = await db.prepare(`
+      SELECT users.* FROM users
+      JOIN oauth_accounts ON oauth_accounts.user_id = users.id
+      WHERE oauth_accounts.provider = ? AND oauth_accounts.provider_user_id = ?
+    `).get(provider, String(providerUserId));
 
+    if (!user && cleanEmail) {
+      user = await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+    }
+
+    let createdUserId = null;
     if (!user) {
       const userId = uid('usr');
-      const baseHandle = '@' + (name || provider).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+      createdUserId = userId;
+      const identitySuffix = String(providerUserId).replace(/[^a-z0-9]/gi, '').slice(-8);
+      const baseHandle = '@' + `${(name || provider).trim().toLowerCase().replace(/[^a-z0-9]/g, '_')}_${identitySuffix}`;
       let handle = baseHandle;
-      const handleCheck = db.prepare('SELECT id FROM users WHERE handle = ?').get(handle);
+      const handleCheck = await db.prepare('SELECT id FROM users WHERE handle = ?').get(handle);
       if (handleCheck) {
         handle = `${baseHandle}_${Math.floor(100 + Math.random() * 900)}`;
       }
@@ -503,7 +529,7 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
       const defaultBanner = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80';
       const now = Date.now();
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (
           id, name, handle, email, password_hash, role, company, location,
           avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at
@@ -527,16 +553,39 @@ app.get('/api/auth/callback/:provider', async (req, res) => {
         now
       );
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    } else {
-      if (avatar && (!user.avatar || user.avatar.includes('unsplash'))) {
-        db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, user.id);
-        user.avatar = avatar;
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    }
+
+    const linkResult = await db.prepare(`
+      INSERT INTO oauth_accounts (id, user_id, provider, provider_user_id, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (provider, provider_user_id) DO NOTHING
+    `).run(uid('oauth'), user.id, provider, String(providerUserId), Date.now());
+    if (linkResult.changes === 0) {
+      const linkedUser = await db.prepare(`
+        SELECT users.* FROM users
+        JOIN oauth_accounts ON oauth_accounts.user_id = users.id
+        WHERE oauth_accounts.provider = ? AND oauth_accounts.provider_user_id = ?
+      `).get(provider, String(providerUserId));
+      if (!linkedUser) {
+        throw new Error('OAuth identity could not be linked to its account.');
       }
+      if (createdUserId && linkedUser.id !== createdUserId) {
+        await db.prepare('DELETE FROM users WHERE id = ?').run(createdUserId);
+      }
+      user = linkedUser;
+    }
+    if (cleanEmail && !user.email) {
+      await db.prepare('UPDATE users SET email = ? WHERE id = ?').run(cleanEmail, user.id);
+      user.email = cleanEmail;
+    }
+    if (avatar && (!user.avatar || user.avatar.includes('unsplash'))) {
+      await db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, user.id);
+      user.avatar = avatar;
     }
 
     const { password_hash, ...safeUser } = user;
-    const token = generateToken(safeUser);
+    const token = await createSession(safeUser);
 
     return res.redirect(`${currentAppUrl}/#token=${encodeURIComponent(token)}`);
   } catch (err) {
@@ -553,11 +602,11 @@ app.post('/api/auth/social', async (req, res) => {
 });
 
 // Get Current User Profile (Me)
-app.get('/api/auth/me', requireAuth, (req, res) => {
+app.get('/api/auth/me', requireAuth, async (req, res) => {
   const userId = req.user.id;
-  const skills = db.prepare('SELECT id, name, score, endorsements FROM skills WHERE user_id = ?').all(userId);
-  const artifacts = db.prepare('SELECT * FROM artifacts WHERE user_id = ? ORDER BY created_at DESC').all(userId);
-  const experiences = db.prepare('SELECT * FROM experiences WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+  const skills = await db.prepare('SELECT id, name, score, endorsements FROM skills WHERE user_id = ?').all(userId);
+  const artifacts = await db.prepare('SELECT * FROM artifacts WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+  const experiences = await db.prepare('SELECT * FROM experiences WHERE user_id = ? ORDER BY created_at DESC').all(userId);
 
   return res.json({
     user: {
@@ -574,16 +623,16 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // ----------------------------------------------------
 
 // Get any user profile by ID
-app.get('/api/users/:id', optionalAuth, (req, res) => {
-  const user = db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, auth_provider, created_at FROM users WHERE id = ?').get(req.params.id);
+app.get('/api/users/:id', optionalAuth, async (req, res) => {
+  const user = await db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, auth_provider, created_at FROM users WHERE id = ?').get(req.params.id);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found.' });
   }
 
-  const skills = db.prepare('SELECT id, name, score, endorsements FROM skills WHERE user_id = ?').all(user.id);
-  const artifacts = db.prepare('SELECT * FROM artifacts WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
-  const experiences = db.prepare('SELECT * FROM experiences WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  const skills = await db.prepare('SELECT id, name, score, endorsements FROM skills WHERE user_id = ?').all(user.id);
+  const artifacts = await db.prepare('SELECT * FROM artifacts WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
+  const experiences = await db.prepare('SELECT * FROM experiences WHERE user_id = ? ORDER BY created_at DESC').all(user.id);
 
   return res.json({
     user: {
@@ -596,10 +645,10 @@ app.get('/api/users/:id', optionalAuth, (req, res) => {
 });
 
 // Update Profile
-app.put('/api/users/profile', requireAuth, (req, res) => {
+app.put('/api/users/profile', requireAuth, async (req, res) => {
   const { name, role, company, location, bio, avatar, banner } = req.body;
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE users SET
       name = COALESCE(?, name),
       role = COALESCE(?, role),
@@ -620,29 +669,29 @@ app.put('/api/users/profile', requireAuth, (req, res) => {
     req.user.id
   );
 
-  const updated = db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?').get(req.user.id);
+  const updated = await db.prepare('SELECT id, name, handle, email, role, company, location, avatar, banner, bio, workmark_score, verified, is_admin, auth_provider, created_at FROM users WHERE id = ?').get(req.user.id);
   return res.json({ user: updated });
 });
 
 // Add Skill
-app.post('/api/users/skills', requireAuth, (req, res) => {
+app.post('/api/users/skills', requireAuth, async (req, res) => {
   const { name, score } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Skill name is required.' });
   }
 
   const skillId = uid('skl');
-  db.prepare('INSERT INTO skills (id, user_id, name, score, endorsements, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO skills (id, user_id, name, score, endorsements, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(skillId, req.user.id, name.trim(), score || 90, 0, Date.now());
 
-  const skill = db.prepare('SELECT id, name, score, endorsements FROM skills WHERE id = ?').get(skillId);
+  const skill = await db.prepare('SELECT id, name, score, endorsements FROM skills WHERE id = ?').get(skillId);
   return res.status(201).json({ skill });
 });
 
 // Endorse Skill
-app.post('/api/users/skills/:id/endorse', optionalAuth, (req, res) => {
-  db.prepare('UPDATE skills SET endorsements = endorsements + 1, score = min(100, score + 1) WHERE id = ?').run(req.params.id);
-  const updated = db.prepare('SELECT id, name, score, endorsements FROM skills WHERE id = ?').get(req.params.id);
+app.post('/api/users/skills/:id/endorse', optionalAuth, async (req, res) => {
+  await db.prepare('UPDATE skills SET endorsements = endorsements + 1, score = CASE WHEN score < 100 THEN score + 1 ELSE 100 END WHERE id = ?').run(req.params.id);
+  const updated = await db.prepare('SELECT id, name, score, endorsements FROM skills WHERE id = ?').get(req.params.id);
   if (!updated) {
     return res.status(404).json({ error: 'Skill not found.' });
   }
@@ -650,7 +699,7 @@ app.post('/api/users/skills/:id/endorse', optionalAuth, (req, res) => {
 });
 
 // Add Work & Distribution Deliverable
-app.post('/api/users/artifacts', requireAuth, (req, res) => {
+app.post('/api/users/artifacts', requireAuth, async (req, res) => {
   const { title, category, role, distribution, metric, techStack, demoUrl, repoUrl, image } = req.body;
 
   if (!title || !title.trim()) {
@@ -658,7 +707,7 @@ app.post('/api/users/artifacts', requireAuth, (req, res) => {
   }
 
   const artifactId = uid('art');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO artifacts (
       id, user_id, title, category, role, distribution, metric, tech_stack,
       demo_url, repo_url, image, verified, created_at
@@ -679,13 +728,13 @@ app.post('/api/users/artifacts', requireAuth, (req, res) => {
     Date.now()
   );
 
-  const artifact = db.prepare('SELECT * FROM artifacts WHERE id = ?').get(artifactId);
+  const artifact = await db.prepare('SELECT * FROM artifacts WHERE id = ?').get(artifactId);
   return res.status(201).json({ artifact });
 });
 
 // Delete Artifact
-app.delete('/api/users/artifacts/:id', requireAuth, (req, res) => {
-  db.prepare('DELETE FROM artifacts WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+app.delete('/api/users/artifacts/:id', requireAuth, async (req, res) => {
+  await db.prepare('DELETE FROM artifacts WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
   return res.json({ success: true });
 });
 
@@ -694,9 +743,9 @@ app.delete('/api/users/artifacts/:id', requireAuth, (req, res) => {
 // ----------------------------------------------------
 
 // Get All Posts
-app.get('/api/posts', optionalAuth, (req, res) => {
+app.get('/api/posts', optionalAuth, async (req, res) => {
   const currentUserId = req.user ? req.user.id : null;
-  const rawPosts = db.prepare(`
+  const rawPosts = await db.prepare(`
     SELECT
       p.id, p.content, p.image_url, p.code_lang, p.code_snippet,
       p.poll_question, p.poll_options, p.tags, p.created_at,
@@ -708,25 +757,25 @@ app.get('/api/posts', optionalAuth, (req, res) => {
     ORDER BY p.created_at DESC
   `).all();
 
-  const posts = rawPosts.map((p) => {
+  const posts = await Promise.all(rawPosts.map(async (p) => {
     // Reactions count
-    const reactions = db.prepare('SELECT reaction_type, count(*) as count FROM post_reactions WHERE post_id = ? GROUP BY reaction_type').all(p.id);
+    const reactions = await db.prepare('SELECT reaction_type, count(*) as count FROM post_reactions WHERE post_id = ? GROUP BY reaction_type').all(p.id);
     const reactionCounts = { like: 0, celebrate: 0, support: 0, love: 0, insightful: 0, vouch: 0 };
     let totalLikes = 0;
     reactions.forEach((r) => {
       reactionCounts[r.reaction_type] = r.count;
-      totalLikes += r.count;
+      totalLikes += Number(r.count);
     });
 
     // Current user reaction
     let userReaction = null;
     if (currentUserId) {
-      const myReact = db.prepare('SELECT reaction_type FROM post_reactions WHERE post_id = ? AND user_id = ?').get(p.id, currentUserId);
+      const myReact = await db.prepare('SELECT reaction_type FROM post_reactions WHERE post_id = ? AND user_id = ?').get(p.id, currentUserId);
       if (myReact) userReaction = myReact.reaction_type;
     }
 
     // Comments
-    const comments = db.prepare(`
+    const comments = await db.prepare(`
       SELECT c.id, c.text, c.created_at, u.name as author, u.avatar, u.role
       FROM comments c
       JOIN users u ON c.user_id = u.id
@@ -744,17 +793,17 @@ app.get('/api/posts', optionalAuth, (req, res) => {
         optionsList = ['Option 1', 'Option 2'];
       }
 
-      const votes = db.prepare('SELECT option_index, count(*) as count FROM poll_votes WHERE post_id = ? GROUP BY option_index').all(p.id);
+      const votes = await db.prepare('SELECT option_index, count(*) as count FROM poll_votes WHERE post_id = ? GROUP BY option_index').all(p.id);
       const voteMap = {};
       let totalVotes = 0;
       votes.forEach((v) => {
         voteMap[v.option_index] = v.count;
-        totalVotes += v.count;
+        totalVotes += Number(v.count);
       });
 
       let userVotedIndex = null;
       if (currentUserId) {
-        const myVote = db.prepare('SELECT option_index FROM poll_votes WHERE post_id = ? AND user_id = ?').get(p.id, currentUserId);
+        const myVote = await db.prepare('SELECT option_index FROM poll_votes WHERE post_id = ? AND user_id = ?').get(p.id, currentUserId);
         if (myVote) userVotedIndex = myVote.option_index;
       }
 
@@ -809,13 +858,13 @@ app.get('/api/posts', optionalAuth, (req, res) => {
         timestamp: 'Just now'
       }))
     };
-  });
+  }));
 
   return res.json({ posts });
 });
 
 // Create Post
-app.post('/api/posts', requireAuth, (req, res) => {
+app.post('/api/posts', requireAuth, async (req, res) => {
   const content = req.body.content || '';
   const imageUrl = req.body.imageUrl || req.body.image_url || '';
   const codeLang = req.body.codeLang || (req.body.codeBlock && req.body.codeBlock.language) || '';
@@ -839,7 +888,7 @@ app.post('/api/posts', requireAuth, (req, res) => {
   }
 
   const postId = uid('post');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO posts (
       id, user_id, content, image_url, code_lang, code_snippet,
       poll_question, poll_options, tags, created_at
@@ -861,24 +910,24 @@ app.post('/api/posts', requireAuth, (req, res) => {
 });
 
 // React to Post
-app.post('/api/posts/:id/react', requireAuth, (req, res) => {
+app.post('/api/posts/:id/react', requireAuth, async (req, res) => {
   const { reactionType } = req.body;
   const postId = req.params.id;
   const userId = req.user.id;
 
-  const existing = db.prepare('SELECT id, reaction_type FROM post_reactions WHERE post_id = ? AND user_id = ?').get(postId, userId);
+  const existing = await db.prepare('SELECT id, reaction_type FROM post_reactions WHERE post_id = ? AND user_id = ?').get(postId, userId);
 
   if (existing) {
     if (existing.reaction_type === reactionType) {
       // Toggle off
-      db.prepare('DELETE FROM post_reactions WHERE id = ?').run(existing.id);
+      await db.prepare('DELETE FROM post_reactions WHERE id = ?').run(existing.id);
     } else {
       // Switch reaction
-      db.prepare('UPDATE post_reactions SET reaction_type = ? WHERE id = ?').run(reactionType, existing.id);
+      await db.prepare('UPDATE post_reactions SET reaction_type = ? WHERE id = ?').run(reactionType, existing.id);
     }
   } else {
     // Insert new
-    db.prepare('INSERT INTO post_reactions (id, post_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, ?, ?)')
+    await db.prepare('INSERT INTO post_reactions (id, post_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(uid('rct'), postId, userId, reactionType, Date.now());
   }
 
@@ -886,31 +935,31 @@ app.post('/api/posts/:id/react', requireAuth, (req, res) => {
 });
 
 // Vote in Poll
-app.post('/api/posts/:id/poll/vote', requireAuth, (req, res) => {
+app.post('/api/posts/:id/poll/vote', requireAuth, async (req, res) => {
   const { optionIndex } = req.body;
   const postId = req.params.id;
   const userId = req.user.id;
 
-  const existing = db.prepare('SELECT id FROM poll_votes WHERE post_id = ? AND user_id = ?').get(postId, userId);
+  const existing = await db.prepare('SELECT id FROM poll_votes WHERE post_id = ? AND user_id = ?').get(postId, userId);
   if (existing) {
     return res.status(400).json({ error: 'You have already voted in this poll.' });
   }
 
-  db.prepare('INSERT INTO poll_votes (id, post_id, user_id, option_index, created_at) VALUES (?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO poll_votes (id, post_id, user_id, option_index, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(uid('pvt'), postId, userId, optionIndex, Date.now());
 
   return res.json({ success: true });
 });
 
 // Add Comment
-app.post('/api/posts/:id/comments', requireAuth, (req, res) => {
+app.post('/api/posts/:id/comments', requireAuth, async (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'Comment text is required.' });
   }
 
   const commentId = uid('cmt');
-  db.prepare('INSERT INTO comments (id, post_id, user_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO comments (id, post_id, user_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(commentId, req.params.id, req.user.id, text.trim(), Date.now());
 
   return res.status(201).json({ success: true, commentId });
@@ -921,8 +970,8 @@ app.post('/api/posts/:id/comments', requireAuth, (req, res) => {
 // ----------------------------------------------------
 
 // List Jobs
-app.get('/api/jobs', optionalAuth, (req, res) => {
-  const jobs = db.prepare(`
+app.get('/api/jobs', optionalAuth, async (req, res) => {
+  const jobs = await db.prepare(`
     SELECT j.*, count(a.id) as applicants_count
     FROM jobs j
     LEFT JOIN job_applications a ON j.id = a.job_id
@@ -958,7 +1007,7 @@ app.get('/api/jobs', optionalAuth, (req, res) => {
 });
 
 // Post Job
-app.post('/api/jobs', requireAuth, (req, res) => {
+app.post('/api/jobs', requireAuth, async (req, res) => {
   const { title, company, logo, location, type, salary, skillsRequired, description, benefits } = req.body;
 
   if (!title || !title.trim()) {
@@ -984,7 +1033,7 @@ app.post('/api/jobs', requireAuth, (req, res) => {
   }
 
   const jobId = uid('job');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO jobs (
       id, user_id, title, company, logo, location, type, salary,
       match_score, skills_required, description, benefits, created_at
@@ -1009,17 +1058,17 @@ app.post('/api/jobs', requireAuth, (req, res) => {
 });
 
 // Apply to Job
-app.post('/api/jobs/:id/apply', requireAuth, (req, res) => {
+app.post('/api/jobs/:id/apply', requireAuth, async (req, res) => {
   const { fullName, email, phone, coverNote } = req.body;
   const jobId = req.params.id;
 
-  const existing = db.prepare('SELECT id FROM job_applications WHERE job_id = ? AND user_id = ?').get(jobId, req.user.id);
+  const existing = await db.prepare('SELECT id FROM job_applications WHERE job_id = ? AND user_id = ?').get(jobId, req.user.id);
   if (existing) {
     return res.status(400).json({ error: 'You have already applied to this role.' });
   }
 
   const appId = uid('app');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO job_applications (
       id, job_id, user_id, full_name, email, phone, cover_note, status, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1039,8 +1088,8 @@ app.post('/api/jobs/:id/apply', requireAuth, (req, res) => {
 });
 
 // List User's Job Applications
-app.get('/api/jobs/applications', requireAuth, (req, res) => {
-  const applications = db.prepare(`
+app.get('/api/jobs/applications', requireAuth, async (req, res) => {
+  const applications = await db.prepare(`
     SELECT
       a.id, a.status, a.created_at,
       j.id as job_id, j.title as job_title, j.company as job_company, j.logo as job_logo, j.location as job_location
@@ -1071,14 +1120,14 @@ app.get('/api/jobs/applications', requireAuth, (req, res) => {
 // 5. NETWORK & CONNECTIONS ROUTES
 // ----------------------------------------------------
 
-app.get('/api/network', requireAuth, (req, res) => {
+app.get('/api/network', requireAuth, async (req, res) => {
   const currentUserId = req.user.id;
 
   // Real registered users in directory
-  const allUsers = db.prepare('SELECT id, name, handle, role, company, location, avatar, workmark_score, verified FROM users WHERE id != ?').all(currentUserId);
+  const allUsers = await db.prepare('SELECT id, name, handle, role, company, location, avatar, workmark_score, verified FROM users WHERE id != ?').all(currentUserId);
 
   // My connections
-  const connections = db.prepare(`
+  const connections = await db.prepare(`
     SELECT c.id, c.status, c.requester_id, c.recipient_id,
       u.id as user_id, u.name, u.role, u.company, u.avatar, u.workmark_score
     FROM connections c
@@ -1107,15 +1156,15 @@ app.get('/api/network', requireAuth, (req, res) => {
   return res.json({ nodes });
 });
 
-app.post('/api/network/connect', requireAuth, (req, res) => {
+app.post('/api/network/connect', requireAuth, async (req, res) => {
   const { targetUserId, note } = req.body;
   if (!targetUserId) return res.status(400).json({ error: 'Target user ID required.' });
 
-  const existing = db.prepare('SELECT id FROM connections WHERE (requester_id = ? AND recipient_id = ?) OR (requester_id = ? AND recipient_id = ?)')
+  const existing = await db.prepare('SELECT id FROM connections WHERE (requester_id = ? AND recipient_id = ?) OR (requester_id = ? AND recipient_id = ?)')
     .get(req.user.id, targetUserId, targetUserId, req.user.id);
 
   if (!existing) {
-    db.prepare('INSERT INTO connections (id, requester_id, recipient_id, status, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    await db.prepare('INSERT INTO connections (id, requester_id, recipient_id, status, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(uid('conn'), req.user.id, targetUserId, 'connected', note || '', Date.now());
   }
 
@@ -1126,10 +1175,10 @@ app.post('/api/network/connect', requireAuth, (req, res) => {
 // 6. DIRECT MESSAGING ROUTES
 // ----------------------------------------------------
 
-app.get('/api/messages', requireAuth, (req, res) => {
+app.get('/api/messages', requireAuth, async (req, res) => {
   const currentUserId = req.user.id;
 
-  const msgs = db.prepare(`
+  const msgs = await db.prepare(`
     SELECT m.*,
       sender.name as sender_name, sender.avatar as sender_avatar,
       recipient.name as recipient_name, recipient.avatar as recipient_avatar
@@ -1143,14 +1192,14 @@ app.get('/api/messages', requireAuth, (req, res) => {
   return res.json({ messages: msgs });
 });
 
-app.post('/api/messages', requireAuth, (req, res) => {
+app.post('/api/messages', requireAuth, async (req, res) => {
   const { recipientId, text } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'Message cannot be empty.' });
   }
 
   const msgId = uid('msg');
-  db.prepare('INSERT INTO messages (id, sender_id, recipient_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO messages (id, sender_id, recipient_id, text, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(msgId, req.user.id, recipientId || req.user.id, text.trim(), Date.now());
 
   return res.status(201).json({ success: true, messageId: msgId });
@@ -1160,8 +1209,8 @@ app.post('/api/messages', requireAuth, (req, res) => {
 // 7. NOTIFICATIONS ROUTES
 // ----------------------------------------------------
 
-app.get('/api/notifications', requireAuth, (req, res) => {
-  const notifs = db.prepare(`
+app.get('/api/notifications', requireAuth, async (req, res) => {
+  const notifs = await db.prepare(`
     SELECT n.*, u.name as actor_name, u.avatar as actor_avatar, u.role as actor_role
     FROM notifications n
     LEFT JOIN users u ON n.actor_id = u.id
@@ -1172,8 +1221,8 @@ app.get('/api/notifications', requireAuth, (req, res) => {
   return res.json({ notifications: notifs });
 });
 
-app.put('/api/notifications/read-all', requireAuth, (req, res) => {
-  db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(req.user.id);
+app.put('/api/notifications/read-all', requireAuth, async (req, res) => {
+  await db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(req.user.id);
   return res.json({ success: true });
 });
 
@@ -1181,11 +1230,11 @@ app.put('/api/notifications/read-all', requireAuth, (req, res) => {
 // 8. ADMIN DASHBOARD & TELEMETRY
 // ----------------------------------------------------
 
-app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
-  const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
-  const postCount = db.prepare('SELECT count(*) as count FROM posts').get().count;
-  const jobCount = db.prepare('SELECT count(*) as count FROM jobs').get().count;
-  const appCount = db.prepare('SELECT count(*) as count FROM job_applications').get().count;
+app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
+  const userCount = Number((await db.prepare('SELECT count(*) as count FROM users').get()).count);
+  const postCount = Number((await db.prepare('SELECT count(*) as count FROM posts').get()).count);
+  const jobCount = Number((await db.prepare('SELECT count(*) as count FROM jobs').get()).count);
+  const appCount = Number((await db.prepare('SELECT count(*) as count FROM job_applications').get()).count);
 
   return res.json({
     stats: {
@@ -1199,15 +1248,20 @@ app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
   });
 });
 
-app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
-  const users = db.prepare('SELECT id, name, handle, email, role, company, verified, is_admin, created_at FROM users ORDER BY created_at DESC').all();
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  const users = await db.prepare('SELECT id, name, handle, email, role, company, verified, is_admin, created_at FROM users ORDER BY created_at DESC').all();
   return res.json({ users });
 });
 
 // Start Server
 if (process.env.NODE_ENV !== 'test' && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  app.listen(PORT, () => {
-    console.log(`[Workmark Backend API] Live on http://localhost:${PORT}`);
+  appReady.then(() => {
+    app.listen(PORT, () => {
+      console.log(`[Workmark Backend API] Live on http://localhost:${PORT}`);
+    });
+  }).catch((error) => {
+    console.error('[Workmark Backend API] Startup failed:', error);
+    process.exitCode = 1;
   });
 }
 

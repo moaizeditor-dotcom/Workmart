@@ -53,7 +53,7 @@ export default function Navbar({
             <div className="text-left">
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">
-                  Work<span className="text-[#0A66C2]">mark</span>
+                  Work<span className="text-[#0A66C2]">Mart</span>
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" title="Network Verified" />
               </div>

@@ -1,0 +1,47 @@
+# WorkMart Production Robots Directive
+# Optimized for Google, Bing, DuckDuckGo, Baidu, Yandex, and Social Link Indexers
+
+User-agent: *
+Allow: /
+Allow: /jobs
+Allow: /network
+Allow: /profile
+Allow: /feed
+Disallow: /api/admin/
+Disallow: /api/auth/login
+Disallow: /api/auth/register
+
+# Social Sharing Spiders (Allow Full OpenGraph & Asset Crawling)
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+Allow: /og-image.png
+Allow: /og-image.jpg
+Allow: /favicon.svg
+
+User-agent: Bingbot
+Allow: /
+
+# Canonical XML Sitemap
+Sitemap: https://workmart.netlify.app/sitemap.xml
+Host: https://workmart.netlify.app

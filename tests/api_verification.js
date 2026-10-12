@@ -249,6 +249,17 @@ async function runTests() {
     test('Casts vote in database poll', res16b.status === 200);
   }
 
+  const logoutRes = await fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  test('Revokes the server-side session on logout', logoutRes.status === 200);
+
+  const revokedSessionRes = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  test('Rejects a revoked session on subsequent requests', revokedSessionRes.status === 401);
+
   console.log(`--- TEST RESULTS: ${passed} PASSED, ${failed} FAILED ---`);
   if (failed > 0) process.exit(1);
 }

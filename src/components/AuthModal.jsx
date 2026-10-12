@@ -130,11 +130,18 @@ export default function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        className="relative w-full max-w-md p-5 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] overflow-y-auto overscroll-contain"
+      >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close sign-in dialog"
           className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors"
         >
           <X className="w-4 h-4" />
@@ -145,8 +152,8 @@ export default function AuthModal({
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0A66C2] to-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-500/25">
             <span className="text-white font-black text-2xl">W</span>
           </div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-            {mode === 'signup' ? 'Join Workmark' : 'Welcome Back'}
+          <h3 id="auth-modal-title" className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            {mode === 'signup' ? 'Join WorkMart' : 'Welcome Back'}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {mode === 'signup'
@@ -292,6 +299,7 @@ export default function AuthModal({
                   <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
+                    autoComplete="name"
                     required
                     placeholder="e.g. John Doe"
                     value={fullName}
@@ -327,6 +335,7 @@ export default function AuthModal({
               <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
                 type="email"
+                autoComplete="email"
                 required
                 placeholder="name@company.com"
                 value={email}
@@ -344,6 +353,7 @@ export default function AuthModal({
               <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
                 type="password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 required
                 placeholder="At least 6 characters"
                 value={password}

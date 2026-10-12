@@ -53,9 +53,11 @@ export const loginUser = (credentials) => request('/auth/login', { method: 'POST
 export const socialLogin = (socialData) => request('/auth/social', { method: 'POST', body: JSON.stringify(socialData) });
 export const getOAuthConfig = () => request('/auth/oauth/config');
 export const getMe = () => request('/auth/me');
-export const logoutUser = () => {
+export const logoutUser = async () => {
+  if (getAuthToken()) {
+    await request('/auth/logout', { method: 'POST' });
+  }
   setAuthToken(null);
-  return Promise.resolve();
 };
 
 // Users & Profile

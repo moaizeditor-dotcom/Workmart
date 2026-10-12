@@ -1,17 +1,405 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+
+    <!-- =========================================================
+         PRIMARY SEARCH ENGINE OPTIMIZATION (SEO) META TAGS
+    ========================================================== -->
+    <title>WorkMart — The Verified Tech Talent Network &amp; Career Marketplace</title>
+    <meta name="title" content="WorkMart — The Verified Tech Talent Network &amp; Career Marketplace" />
+    <meta name="description" content="Connect with elite verified software engineers, architects, and technical leaders. Discover high-impact tech opportunities, showcase proof-of-work dossiers, and hire verified talent on WorkMart." />
+    <meta name="keywords" content="WorkMart, Workmark, verified tech talent, software engineer jobs, remote developer jobs, tech career network, proof of work portfolio, technical recruiting, hire software engineers, cloud architect jobs, AI engineer roles, full stack developer hiring, distributed systems careers" />
+    <meta name="author" content="WorkMart Inc." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <link rel="canonical" href="https://workmart.netlify.app/" />
+
+    <!-- Localization and Geotargeting -->
+    <meta name="language" content="English" />
+    <meta name="geo.region" content="US" />
+    <meta name="geo.placename" content="San Francisco, CA" />
+    <meta name="rating" content="general" />
+
+    <!-- =========================================================
+         OPEN GRAPH PROTOCOL (FACEBOOK, LINKEDIN, SLACK, DISCORD)
+    ========================================================== -->
+    <meta property="og:site_name" content="WorkMart" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://workmart.netlify.app/" />
+    <meta property="og:title" content="WorkMart — The Verified Tech Talent Network &amp; Career Marketplace" />
+    <meta property="og:description" content="Connect with elite verified software engineers, architects, and technical leaders. Discover high-impact tech opportunities, showcase proof-of-work, and hire verified talent." />
+    <meta property="og:image" content="https://workmart.netlify.app/og-image.png" />
+    <meta property="og:image:secure_url" content="https://workmart.netlify.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="WorkMart Verified Talent Network Platform Preview with 3D Constellation and Engineer Dossiers" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- =========================================================
+         TWITTER / X CARDS
+    ========================================================== -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@WorkMart" />
+    <meta name="twitter:creator" content="@WorkMart" />
+    <meta name="twitter:url" content="https://workmart.netlify.app/" />
+    <meta name="twitter:title" content="WorkMart — The Verified Tech Talent Network &amp; Jobs" />
+    <meta name="twitter:description" content="Connect with elite verified software engineers, architects, and technical leaders. Discover high-impact career opportunities on WorkMart." />
+    <meta name="twitter:image" content="https://workmart.netlify.app/og-image.png" />
+    <meta name="twitter:image:alt" content="WorkMart Verified Tech Talent Network Interface" />
+
+    <!-- =========================================================
+         MOBILE, PWA & THEME CONFIGURATION
+    ========================================================== -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Workmark | The Verified Talent Network</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0A66C2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0F19" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WorkMart" />
+    <meta name="application-name" content="WorkMart" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Search Engine Ownership & Webmaster Verification -->
+    <meta name="google-site-verification" content="WORKMART_GOOGLE_SITE_VERIFICATION_TOKEN" />
+    <meta name="msvalidate.01" content="WORKMART_BING_WEBMASTER_VERIFICATION_TOKEN" />
+    <meta name="yandex-verification" content="WORKMART_YANDEX_VERIFICATION_TOKEN" />
+
+    <!-- Performance & Asset Optimization: DNS-Prefetch and Preconnect -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+    <!-- =========================================================
+         SCHEMA.ORG STRUCTURED DATA (JSON-LD KNOWLEDGE GRAPH)
+    ========================================================== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://workmart.netlify.app/#website",
+          "url": "https://workmart.netlify.app/",
+          "name": "WorkMart",
+          "alternateName": ["Workmark", "WorkMart Verified Talent Network"],
+          "description": "The verified professional talent network and technical career marketplace for high-impact software engineers, architects, and engineering leaders.",
+          "publisher": {
+            "@id": "https://workmart.netlify.app/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://workmart.netlify.app/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          },
+          "inLanguage": "en-US"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://workmart.netlify.app/#organization",
+          "name": "WorkMart Inc.",
+          "alternateName": "WorkMart",
+          "url": "https://workmart.netlify.app/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://workmart.netlify.app/favicon.svg",
+            "width": "512",
+            "height": "512"
+          },
+          "image": {
+            "@type": "ImageObject",
+            "url": "https://workmart.netlify.app/og-image.png",
+            "width": "1200",
+            "height": "630"
+          },
+          "description": "WorkMart is a verified professional talent network empowering top-tier technical professionals to showcase cryptographic proof-of-work and connect directly with hiring managers.",
+          "sameAs": [
+            "https://twitter.com/WorkMart",
+            "https://github.com/workmart",
+            "https://linkedin.com/company/workmart"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "support@workmart.com",
+            "availableLanguage": ["English"]
+          }
+        },
+        {
+          "@type": "EmploymentAgency",
+          "@id": "https://workmart.netlify.app/#agency",
+          "name": "WorkMart Career Marketplace",
+          "parentOrganization": {
+            "@id": "https://workmart.netlify.app/#organization"
+          },
+          "url": "https://workmart.netlify.app/#jobs",
+          "description": "Verified technology recruitment, direct talent sourcing, and high-compensation career matching for elite engineering and leadership talent."
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": "https://workmart.netlify.app/#breadcrumbs",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://workmart.netlify.app/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Tech Jobs & Opportunities",
+              "item": "https://workmart.netlify.app/#jobs"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "3D Spatial Talent Constellation",
+              "item": "https://workmart.netlify.app/#network"
+            },
+            {
+              "@type": "ListItem",
+              "position": 4,
+              "name": "Proof-of-Work Dossiers",
+              "item": "https://workmart.netlify.app/#profile"
+            }
+          ]
+        },
+        {
+          "@type": "JobPosting",
+          "@id": "https://workmart.netlify.app/#job-staff-infra",
+          "title": "Staff Infrastructure & Cloud Architect",
+          "description": "Lead multi-region Kubernetes orchestration, zero-trust infrastructure security, and distributed data plane reliability across petabyte-scale compute clusters. Requirements: Go, Rust, Kubernetes, Terraform, AWS, distributed consensus protocols.",
+          "datePosted": "2026-10-10",
+          "validThrough": "2027-10-10",
+          "employmentType": "FULL_TIME",
+          "hiringOrganization": {
+            "@type": "Organization",
+            "name": "NeuralScale Systems",
+            "sameAs": "https://workmart.netlify.app/"
+          },
+          "jobLocation": {
+            "@type": "Place",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "San Francisco",
+              "addressRegion": "CA",
+              "addressCountry": "US"
+            }
+          },
+          "jobLocationType": "TELECOMMUTE",
+          "applicantLocationRequirements": {
+            "@type": "Country",
+            "name": "United States"
+          },
+          "baseSalary": {
+            "@type": "MonetaryAmount",
+            "currency": "USD",
+            "value": {
+              "@type": "QuantitativeValue",
+              "minValue": 240000,
+              "maxValue": 310000,
+              "unitText": "YEAR"
+            }
+          }
+        },
+        {
+          "@type": "JobPosting",
+          "@id": "https://workmart.netlify.app/#job-principal-dist-sys",
+          "title": "Principal Distributed Systems Engineer",
+          "description": "Architect next-generation real-time analytical database engine with sub-millisecond query latency and automated sharding. Experience with Raft, Paxos, C++, Rust, and low-latency systems required.",
+          "datePosted": "2026-10-09",
+          "validThrough": "2027-10-09",
+          "employmentType": "FULL_TIME",
+          "hiringOrganization": {
+            "@type": "Organization",
+            "name": "Vortex Data Engine",
+            "sameAs": "https://workmart.netlify.app/"
+          },
+          "jobLocation": {
+            "@type": "Place",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "New York",
+              "addressRegion": "NY",
+              "addressCountry": "US"
+            }
+          },
+          "jobLocationType": "TELECOMMUTE",
+          "applicantLocationRequirements": {
+            "@type": "Country",
+            "name": "United States"
+          },
+          "baseSalary": {
+            "@type": "MonetaryAmount",
+            "currency": "USD",
+            "value": {
+              "@type": "QuantitativeValue",
+              "minValue": 210000,
+              "maxValue": 285000,
+              "unitText": "YEAR"
+            }
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://workmart.netlify.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is WorkMart and how does it verify software engineers?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "WorkMart is a verified professional tech talent network where software engineers, cloud architects, and engineering leaders showcase cryptographic and peer-reviewed proof-of-work dossiers, live distributed systems benchmarks, and verified repo contributions instead of conventional unverified resumes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do companies find and hire elite engineers on WorkMart?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Engineering leaders and technical recruiters browse verified talent using our interactive 3D Spatial Talent Constellation, filter candidates by proven distributed systems and architecture proficiencies, and connect directly with talent without intermediary recruiter spam."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is WorkMart free for software engineers and candidates?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, WorkMart is 100% free for software engineers, designers, architects, and technical leaders to build verified proof-of-work profiles, connect across the 3D talent graph, and apply for high-compensation roles."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What makes the WorkMart 3D Spatial Talent Constellation unique?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The WorkMart 3D Spatial Talent Constellation visualizes 1st, 2nd, and 3rd-degree technical relationships and skills graph in an interactive 3D WebGL space, allowing developers and hiring teams to explore collaborative clusters, domain specializations, and validated endorsements intuitively."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What types of engineering roles are featured on WorkMart?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "WorkMart curates high-impact engineering opportunities across Staff Cloud & Infrastructure Architecture, Principal Distributed Systems, Machine Learning & AI Engineering, Full-Stack Architecture, and Zero-Trust Cybersecurity."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased overflow-x-hidden selection:bg-blue-500/20 selection:text-blue-600">
-    <div id="root"></div>
+    <!-- =========================================================
+         ACCESSIBLE CRAWLER FALLBACK (INDEXED BEFORE JAVASCRIPT MOUNT)
+    ========================================================== -->
+    <div id="root">
+      <header style="padding: 1rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0A66C2;">WorkMart</h2>
+          <p style="margin: 0; font-size: 0.75rem; color: #64748b;">The Verified Tech Talent Network &amp; Career Marketplace</p>
+        </div>
+        <nav style="display: flex; gap: 1.5rem; font-size: 0.875rem;">
+          <a href="#feed" style="color: #0A66C2; text-decoration: none; font-weight: 600;">Home Feed</a>
+          <a href="#network" style="color: #475569; text-decoration: none;">3D Talent Graph</a>
+          <a href="#jobs" style="color: #475569; text-decoration: none;">Opportunities</a>
+          <a href="#profile" style="color: #475569; text-decoration: none;">Proof of Work</a>
+        </nav>
+      </header>
+
+      <main style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem; font-family: system-ui, -apple-system, sans-serif;">
+        <h1 style="font-size: 2.5rem; font-weight: 900; color: #0f172a; line-height: 1.2;">
+          Welcome to <span style="color: #0A66C2;">WorkMart</span> — The Verified Tech Talent Network
+        </h1>
+        <p style="font-size: 1.125rem; color: #475569; max-width: 800px; line-height: 1.6; margin-top: 1rem;">
+          Connect with elite verified software engineers, distributed systems architects, and technical executives.
+          WorkMart eliminates resume inflation through cryptographic proof-of-work project distributions, verified skills, and transparent career matches.
+        </p>
+
+        <section style="margin-top: 3rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">Featured High-Impact Opportunities</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+            <article style="border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; background: #ffffff;">
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem; color: #0f172a;">Staff Infrastructure Architect</h3>
+              <p style="margin: 0; font-size: 0.875rem; color: #0A66C2; font-weight: 600;">NeuralScale Systems · Remote (US)</p>
+              <p style="margin: 0.75rem 0; font-size: 0.875rem; color: #64748b;">$240,000 - $310,000 · Full-time · Multi-region Kubernetes &amp; Go</p>
+            </article>
+            <article style="border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; background: #ffffff;">
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem; color: #0f172a;">Principal Distributed Systems Engineer</h3>
+              <p style="margin: 0; font-size: 0.875rem; color: #0A66C2; font-weight: 600;">Vortex Data Engine · Remote (US/Hybrid)</p>
+              <p style="margin: 0.75rem 0; font-size: 0.875rem; color: #64748b;">$210,000 - $285,000 · Full-time · Raft, Paxos, Rust &amp; C++</p>
+            </article>
+          </div>
+        </section>
+
+        <section style="margin-top: 3rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">The 3D Talent Constellation &amp; Proof of Work</h2>
+          <p style="font-size: 0.95rem; color: #475569; line-height: 1.6;">
+            Explore our interactive spatial talent graph connecting accredited developers, machine learning researchers, and cloud architects worldwide.
+            Each member features a verified WorkMart Dossier with verifiable project metrics, architecture distribution breakdowns, and peer endorsements.
+          </p>
+        </section>
+
+        <section style="margin-top: 3rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">Core Technical Disciplines &amp; Specializations</h2>
+          <ul style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; list-style: none; padding: 0; margin-top: 1rem;">
+            <li style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #ffffff;">
+              <h3 style="margin: 0; font-size: 1rem; color: #0A66C2;">Distributed Systems Architecture</h3>
+              <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #64748b;">Consensus protocols, high-throughput pipelines, Raft, Paxos, low-latency data planes.</p>
+            </li>
+            <li style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #ffffff;">
+              <h3 style="margin: 0; font-size: 1rem; color: #0A66C2;">Cloud &amp; Platform Infrastructure</h3>
+              <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #64748b;">Multi-region Kubernetes clusters, zero-trust service meshes, Terraform, observability.</p>
+            </li>
+            <li style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #ffffff;">
+              <h3 style="margin: 0; font-size: 1rem; color: #0A66C2;">AI &amp; Machine Learning Engineering</h3>
+              <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #64748b;">LLM orchestration, model distillation, vectorized inference, high-scale training pipelines.</p>
+            </li>
+            <li style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #ffffff;">
+              <h3 style="margin: 0; font-size: 1rem; color: #0A66C2;">Zero-Trust Application Security</h3>
+              <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #64748b;">Cryptographic verification, OAuth2/OIDC, penetration testing, automated compliance.</p>
+            </li>
+          </ul>
+        </section>
+
+        <section style="margin-top: 3rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">Frequently Asked Questions (FAQ)</h2>
+          <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
+            <article>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem;">What is WorkMart and how does it verify software engineers?</h3>
+              <p style="font-size: 0.9rem; color: #475569; margin: 0; line-height: 1.5;">WorkMart is a verified professional tech talent network where software engineers, cloud architects, and engineering leaders showcase cryptographic and peer-reviewed proof-of-work dossiers, live distributed systems benchmarks, and verified repo contributions instead of conventional unverified resumes.</p>
+            </article>
+            <article>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem;">How do companies find and hire elite engineers on WorkMart?</h3>
+              <p style="font-size: 0.9rem; color: #475569; margin: 0; line-height: 1.5;">Engineering leaders and technical recruiters browse verified talent using our interactive 3D Spatial Talent Constellation, filter candidates by proven distributed systems and architecture proficiencies, and connect directly with talent without intermediary recruiter spam.</p>
+            </article>
+            <article>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem;">Is WorkMart free for software engineers and candidates?</h3>
+              <p style="font-size: 0.9rem; color: #475569; margin: 0; line-height: 1.5;">Yes, WorkMart is 100% free for software engineers, designers, architects, and technical leaders to build verified proof-of-work profiles, connect across the 3D talent graph, and apply for high-compensation roles.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer style="margin-top: 4rem; padding: 2rem; border-top: 1px solid #e2e8f0; text-align: center; font-size: 0.875rem; color: #94a3b8;">
+        <p>&copy; 2026 WorkMart Inc. All rights reserved. The Verified Professional Talent Network.</p>
+      </footer>
+    </div>
+
+    <!-- React Application Mount -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

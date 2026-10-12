@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+  <!-- Homepage / Main Landing -->
+  <url>
+    <loc>https://workmart.netlify.app/</loc>
+    <lastmod>2026-10-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://workmart.netlify.app/og-image.png</image:loc>
+      <image:title>WorkMart — The Verified Tech Talent Network &amp; Career Marketplace</image:title>
+      <image:caption>Connecting global elite software engineers, architects, and technical leaders with high-impact career opportunities.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- High-Intent Tech Careers & Opportunities -->
+  <url>
+    <loc>https://workmart.netlify.app/#jobs</loc>
+    <lastmod>2026-10-11</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://workmart.netlify.app/og-image.png</image:loc>
+      <image:title>Tech Jobs &amp; Engineering Opportunities | WorkMart</image:title>
+      <image:caption>Browse verified high-compensation software architecture, AI engineering, and full-stack opportunities.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- 3D Talent Graph & Spatial Network -->
+  <url>
+    <loc>https://workmart.netlify.app/#network</loc>
+    <lastmod>2026-10-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.90</priority>
+    <image:image>
+      <image:loc>https://workmart.netlify.app/og-image.png</image:loc>
+      <image:title>Verified Spatial Talent Constellation | WorkMart</image:title>
+      <image:caption>Interactive 3D network graph connecting accredited developers, technical founders, and research scientists.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Proof of Work Dossiers & Profiles -->
+  <url>
+    <loc>https://workmart.netlify.app/#profile</loc>
+    <lastmod>2026-10-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Community Feed & Engineering Insights -->
+  <url>
+    <loc>https://workmart.netlify.app/#feed</loc>
+    <lastmod>2026-10-11</lastmod>
+    <changefreq>always</changefreq>
+    <priority>0.80</priority>
+  </url>
+</urlset>

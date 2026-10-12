@@ -1,0 +1,1 @@
+{"functions":[{"bundler":"esbuild","buildData":{"runtimeAPIVersion":1},"mainFile":"/Users/moiz.if/Documents/workmark/netlify/functions/api.mjs","name":"api","priority":10,"runtimeVersion":"nodejs22.x","path":"/Users/moiz.if/Documents/workmark/.netlify/functions/api.zip","runtime":"js"}],"system":{"arch":"arm64","platform":"darwin"},"timestamp":1791770968057,"version":1}

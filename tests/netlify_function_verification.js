@@ -7,8 +7,9 @@ import path from 'node:path';
 const originalCwd = process.cwd();
 const dataDir = mkdtempSync(path.join(tmpdir(), 'workmark-netlify-auth-'));
 process.env.NETLIFY = 'true';
+process.env.NODE_ENV = 'test';
 process.env.DATA_DIR = dataDir;
-delete process.env.JWT_SECRET;
+process.env.JWT_SECRET = 'netlify-function-test-secret';
 process.env.ADMIN_EMAIL = '';
 process.env.ADMIN_PASSWORD = '';
 process.env.GOOGLE_CLIENT_ID = 'test-google-id';
@@ -93,6 +94,17 @@ try {
   });
   check('Netlify function accepts a persisted bearer session',
     me.statusCode === 200 && JSON.parse(me.body).user.email === email);
+
+  const logout = await invoke('/api/auth/logout', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${loginData.token}` }
+  });
+  check('Netlify function revokes sessions on logout', logout.statusCode === 200);
+
+  const revokedSession = await invoke('/api/auth/me', {
+    headers: { authorization: `Bearer ${loginData.token}` }
+  });
+  check('Netlify function rejects revoked sessions', revokedSession.statusCode === 401);
 
   const twitterStart = await invoke('/api/auth/oauth/twitter');
   const authorizationUrl = new URL(twitterStart.headers.location);
