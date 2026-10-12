@@ -87,6 +87,75 @@ export default function App() {
     else document.documentElement.classList.remove('dark');
   }, [isDark]);
 
+  // Dynamic SEO Meta Tags & View State Sync
+  useEffect(() => {
+    const seoData = {
+      feed: {
+        title: 'WorkMart — Verified Tech Talent Network & Home Feed',
+        desc: 'Explore technical insights, architectural case studies, and engineering updates from verified software engineers on WorkMart.',
+        url: 'https://workmart.netlify.app/#feed'
+      },
+      network: {
+        title: '3D Spatial Talent Constellation & Network | WorkMart',
+        desc: 'Explore the interactive 3D spatial talent graph connecting accredited developers, cloud architects, and research scientists.',
+        url: 'https://workmart.netlify.app/#network'
+      },
+      jobs: {
+        title: 'Tech Careers, High-Impact Roles & Opportunities | WorkMart',
+        desc: 'Discover verified software architecture, distributed systems, and AI engineering opportunities with transparent compensation on WorkMart.',
+        url: 'https://workmart.netlify.app/#jobs'
+      },
+      profile: {
+        title: `${currentUser?.name ? currentUser.name + ' — Verified Dossier' : 'Verified Proof of Work Dossier'} | WorkMart`,
+        desc: 'View verified proof-of-work engineering dossiers, distributed system contributions, and cryptographic credentials on WorkMart.',
+        url: 'https://workmart.netlify.app/#profile'
+      },
+      messages: {
+        title: 'Direct Verified Messaging | WorkMart',
+        desc: 'Connect and message directly with verified software engineers and engineering hiring managers on WorkMart.',
+        url: 'https://workmart.netlify.app/#messages'
+      },
+      notifications: {
+        title: 'Verified Career Alerts & Notifications | WorkMart',
+        desc: 'Stay updated on job application statuses, verified peer endorsements, and engineering discussions.',
+        url: 'https://workmart.netlify.app/#notifications'
+      },
+      admin: {
+        title: 'Admin Control Tower | WorkMart',
+        desc: 'WorkMart administrative control tower and talent verification telemetry.',
+        url: 'https://workmart.netlify.app/#admin'
+      }
+    };
+
+    const currentSeo = seoData[activeTab] || {
+      title: 'WorkMart — The Verified Tech Talent Network & Career Marketplace',
+      desc: 'Connect with elite verified software engineers, architects, and technical leaders. Discover high-impact tech opportunities, showcase proof-of-work, and hire verified talent.',
+      url: 'https://workmart.netlify.app/'
+    };
+
+    document.title = currentSeo.title;
+
+    const setMeta = (attr, key, content) => {
+      let el = document.querySelector(`meta[${attr}="${key}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    setMeta('name', 'description', currentSeo.desc);
+    setMeta('property', 'og:title', currentSeo.title);
+    setMeta('property', 'og:description', currentSeo.desc);
+    setMeta('property', 'og:url', currentSeo.url);
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) {
+      canonical.setAttribute('href', currentSeo.url);
+    }
+  }, [activeTab, currentUser]);
+
   // Persist current user to localStorage whenever updated
   useEffect(() => {
     if (currentUser) {
@@ -139,6 +208,14 @@ export default function App() {
     }
   };
 
+  const clearAuthUrlState = () => {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.searchParams.delete('token');
+    url.searchParams.delete('auth_error');
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+  };
+
   // Process incoming OAuth callbacks from URL params on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -149,10 +226,10 @@ export default function App() {
     if (tokenParam) {
       setAuthToken(tokenParam);
       setIsAuthenticated(true);
-      window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+      clearAuthUrlState();
       refreshAppData();
     } else if (authErrorParam) {
-      window.history.replaceState({}, document.title, window.location.pathname);
+      clearAuthUrlState();
       alert(`OAuth Notice: ${authErrorParam}`);
       refreshAppData();
     } else {
