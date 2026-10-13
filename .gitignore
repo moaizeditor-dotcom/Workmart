@@ -30,3 +30,7 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite-journal
 data/
+
+# Netlify
+.netlify/
+
