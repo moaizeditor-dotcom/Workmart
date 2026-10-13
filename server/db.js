@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import pg from 'pg';
-import { createClient } from '@libsql/client';
+import { createClient } from '@libsql/client/web';
 import { migrateLibsql, migratePostgres } from './migrations.js';
 import './config.js';
 
@@ -18,6 +18,10 @@ if (IS_SERVERLESS && !DATABASE_URL && !LIBSQL_DATABASE_URL) {
 
 if (LIBSQL_DATABASE_URL && !LIBSQL_DATABASE_URL.startsWith('file:') && !LIBSQL_AUTH_TOKEN) {
   throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL points to a remote database.');
+}
+
+if (LIBSQL_DATABASE_URL?.startsWith('file:')) {
+  throw new Error('TURSO_DATABASE_URL must point to a remote libSQL database; use local SQLite for file-backed development.');
 }
 
 const normalizeSql = (sql) => {

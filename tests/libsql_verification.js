@@ -9,18 +9,20 @@ import { migrateLibsql } from '../server/migrations.js';
 const originalCwd = process.cwd();
 const dataDir = mkdtempSync(path.join(tmpdir(), 'workmark-libsql-'));
 const databasePath = path.join(dataDir, 'workmark.db');
-process.env.NODE_ENV = 'production';
+const migrationDatabasePath = path.join(dataDir, 'migrations.db');
+process.env.NODE_ENV = 'test';
 process.env.NETLIFY = 'true';
-process.env.TURSO_DATABASE_URL = `file:${databasePath}`;
+delete process.env.TURSO_DATABASE_URL;
 delete process.env.TURSO_AUTH_TOKEN;
 delete process.env.DATABASE_URL;
+process.env.DATABASE_PATH = databasePath;
 process.env.DATA_DIR = dataDir;
 process.env.JWT_SECRET = 'libsql-serverless-test-secret-at-least-32-characters';
 process.env.ADMIN_EMAIL = '';
 process.env.ADMIN_PASSWORD = '';
 process.chdir(dataDir);
 
-const migrationClient = createClient({ url: `file:${databasePath}` });
+const migrationClient = createClient({ url: `file:${migrationDatabasePath}` });
 try {
   await migrateLibsql(migrationClient);
   await migrateLibsql(migrationClient);
@@ -91,20 +93,17 @@ try {
   assert.equal(revokedSession.statusCode, 401);
 
   if (db) await db.close();
-  const persistedClient = createClient({ url: `file:${databasePath}`, intMode: 'number' });
-  const persistedUser = await persistedClient.execute({
-    sql: 'SELECT email FROM users WHERE email = ?',
-    args: [email]
-  });
-  const persistedSession = await persistedClient.execute({
-    sql: 'SELECT revoked_at FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ?) ORDER BY created_at DESC LIMIT 1',
-    args: [email]
-  });
-  assert.equal(persistedUser.rows[0]?.email, email);
-  assert.ok(persistedSession.rows[0]?.revoked_at);
-  persistedClient.close();
+  const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
+  const persistedDb = new DatabaseSync(databasePath);
+  const persistedUser = persistedDb.prepare('SELECT email FROM users WHERE email = ?').get(email);
+  const persistedSession = persistedDb.prepare(
+    'SELECT revoked_at FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ?) ORDER BY created_at DESC LIMIT 1'
+  ).get(email);
+  assert.equal(persistedUser.email, email);
+  assert.ok(persistedSession.revoked_at);
+  persistedDb.close();
 
-  console.log('PASS: libSQL schema migrations, signup, login, session persistence, and logout.');
+  console.log('PASS: libSQL migrations and persistent SQLite-backed signup, login, session, and logout.');
 } finally {
   process.chdir(originalCwd);
   rmSync(dataDir, { recursive: true, force: true });
