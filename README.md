@@ -52,11 +52,12 @@ npm run build
 
 ## Authentication and deployment configuration
 
-Email authentication uses the Express API. Local development uses SQLite;
-Netlify production requires a managed PostgreSQL database through `DATABASE_URL`
-and fails closed if it is not configured. The first function startup runs
-versioned, transactional schema migrations and uses a small connection pool.
-Set a strong, unique `JWT_SECRET` (at least 32 characters) and the stable
+Email authentication uses the Express API. Local development uses SQLite.
+Netlify production uses a persistent Turso/libSQL database through
+`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` (or managed PostgreSQL through
+`DATABASE_URL`) and fails closed if neither is configured. The first function
+startup runs versioned, transactional schema migrations. Set a strong, unique
+`JWT_SECRET` (at least 32 characters) and the stable
 `APP_URL=https://workmak.netlify.app` in Netlify's server-side environment
 variables. Do not use `VITE_` prefixes for secrets. To provision an administrator,
 set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`; the application does not ship with
@@ -75,22 +76,22 @@ when its API does not provide an email address.
 
 ### Production database setup and safe migration
 
-1. Provision a managed PostgreSQL database (for example, Supabase or Neon).
-2. Set `DATABASE_URL` to the provider's SSL-enabled connection URI and
-   `JWT_SECRET` to a newly generated random value in Netlify's server-side
-   environment variables. Set `APP_URL` to `https://workmak.netlify.app`.
+1. Provision a persistent Turso database and create an auth token. Alternatively,
+   provision managed PostgreSQL (for example, Supabase or Neon).
+2. For Turso, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. For PostgreSQL,
+   set `DATABASE_URL` to the provider's SSL-enabled connection URI. Also set
+   `JWT_SECRET` to a newly generated random value and `APP_URL` to
+   `https://workmak.netlify.app` in Netlify's server-side environment variables.
 3. Save the variables and trigger a fresh deploy; function runtime settings
    added after deployment are not present in an existing function bundle.
-   The API runs its schema
-   migrations at startup. The site does not use `/tmp` for production data.
-4. To import an existing local SQLite database into a newly provisioned,
-   empty PostgreSQL database, set `SQLITE_SOURCE_PATH` to the local file path
-   and run `npm run db:import-sqlite`. The importer refuses a non-empty
-   destination and never modifies the source database. Netlify's prior
-   instance-local `/tmp` data is not available for migration from this workspace.
-5. Verify signup, login, logout, and sessions on the live site before treating
+   The API applies versioned schema migrations at startup; it does not store
+   production data in the function's temporary filesystem.
+4. Verify signup, login, logout, and sessions on the live site before treating
    the cutover as complete.
 
-Production sessions are signed with `JWT_SECRET` and also stored in PostgreSQL;
-logout revokes the server-side session. A password-reset flow is not currently
-implemented.
+Production sessions are signed with `JWT_SECRET` and stored in the configured
+persistent database; logout revokes the server-side session. SQLite-to-PostgreSQL
+imports are available with `npm run db:import-sqlite`; this importer is for
+PostgreSQL destinations. Netlify's prior instance-local `/tmp` data is not
+available for migration from this workspace. A password-reset flow is not
+currently implemented.

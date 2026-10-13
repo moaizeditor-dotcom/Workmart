@@ -1,16 +1,23 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import pg from 'pg';
-import { migratePostgres } from './migrations.js';
+import { createClient } from '@libsql/client';
+import { migrateLibsql, migratePostgres } from './migrations.js';
 import './config.js';
 
 export const IS_SERVERLESS = process.env.NODE_ENV !== 'test' &&
   Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const DATABASE_URL = process.env.NODE_ENV === 'test' ? undefined : process.env.DATABASE_URL;
+const LIBSQL_DATABASE_URL = process.env.TURSO_DATABASE_URL;
+const LIBSQL_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
 const sqlite = process.getBuiltinModule('node:sqlite');
 
-if (IS_SERVERLESS && !DATABASE_URL) {
-  throw new Error('DATABASE_URL is required in serverless production; local SQLite storage is not durable.');
+if (IS_SERVERLESS && !DATABASE_URL && !LIBSQL_DATABASE_URL) {
+  throw new Error('Configure DATABASE_URL or TURSO_DATABASE_URL for a durable serverless database.');
+}
+
+if (LIBSQL_DATABASE_URL && !LIBSQL_DATABASE_URL.startsWith('file:') && !LIBSQL_AUTH_TOKEN) {
+  throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL points to a remote database.');
 }
 
 const normalizeSql = (sql) => {
@@ -57,6 +64,36 @@ if (DATABASE_URL) {
   };
 
   ready = migratePostgres(pool);
+} else if (LIBSQL_DATABASE_URL) {
+  const client = createClient({
+    url: LIBSQL_DATABASE_URL,
+    ...(LIBSQL_AUTH_TOKEN ? { authToken: LIBSQL_AUTH_TOKEN } : {}),
+    intMode: 'number'
+  });
+
+  db = {
+    prepare(sql) {
+      return {
+        async get(...params) {
+          const result = await client.execute({ sql, args: params });
+          return result.rows[0];
+        },
+        async all(...params) {
+          const result = await client.execute({ sql, args: params });
+          return result.rows;
+        },
+        async run(...params) {
+          const result = await client.execute({ sql, args: params });
+          return { changes: result.rowsAffected };
+        }
+      };
+    },
+    async close() {
+      client.close();
+    }
+  };
+
+  ready = migrateLibsql(client);
 } else {
   const { DatabaseSync } = sqlite;
   const DATA_DIR = process.env.DATA_DIR || (IS_SERVERLESS ? '/tmp' : path.resolve(process.cwd(), 'data'));

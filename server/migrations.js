@@ -6,7 +6,7 @@ export const migrations = [
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         handle TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE,
         password_hash TEXT,
         role TEXT DEFAULT 'Software Engineer',
         company TEXT DEFAULT '',
@@ -206,6 +206,18 @@ export const migrations = [
         UNIQUE(user_id, provider)
       );
       CREATE INDEX IF NOT EXISTS oauth_accounts_user_idx ON oauth_accounts(user_id);
+    `,
+    libsqlSql: `
+      CREATE TABLE IF NOT EXISTS oauth_accounts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL,
+        provider_user_id TEXT NOT NULL,
+        created_at BIGINT NOT NULL,
+        UNIQUE(provider, provider_user_id),
+        UNIQUE(user_id, provider)
+      );
+      CREATE INDEX IF NOT EXISTS oauth_accounts_user_idx ON oauth_accounts(user_id);
     `
   }
 ];
@@ -241,5 +253,59 @@ export const migratePostgres = async (pool) => {
     throw error;
   } finally {
     client.release();
+  }
+};
+
+export const migrateLibsql = async (client) => {
+  const maxAttempts = 8;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let transaction;
+    try {
+      transaction = await client.transaction('write');
+      await transaction.execute(`
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          version INTEGER PRIMARY KEY,
+          applied_at BIGINT NOT NULL
+        )
+      `);
+
+      for (const migration of migrations) {
+        const applied = await transaction.execute({
+          sql: 'SELECT version FROM schema_migrations WHERE version = ?',
+          args: [migration.version]
+        });
+        if (applied.rows.length === 0) {
+          const statements = (migration.libsqlSql || migration.sql)
+            .split(';')
+            .map((statement) => statement.trim())
+            .filter(Boolean);
+          for (const statement of statements) {
+            await transaction.execute(statement);
+          }
+          await transaction.execute({
+            sql: 'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
+            args: [migration.version, Date.now()]
+          });
+        }
+      }
+
+      await transaction.commit();
+      return;
+    } catch (error) {
+      if (transaction) {
+        try {
+          await transaction.rollback();
+        } catch (rollbackError) {
+          throw new AggregateError([error, rollbackError], 'libSQL migration failed and could not be rolled back.');
+        }
+      }
+
+      const isLocked = error.code === 'SQLITE_BUSY' || error.code === 'SQLITE_LOCKED';
+      if (!isLocked || attempt === maxAttempts - 1) {
+        throw error;
+      }
+      const delayMs = Math.min(1000, 100 * (2 ** attempt)) + Math.floor(Math.random() * 100);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 };
